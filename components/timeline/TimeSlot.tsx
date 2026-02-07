@@ -198,7 +198,7 @@ export function TimeSlot({
       } else {
         setActivity(previous.activity)
         setThought(previous.thought || '')
-        saveEntry(true)
+        saveEntry()
       }
     }
   }
@@ -211,7 +211,7 @@ export function TimeSlot({
       if (previous) {
         setActivity(previous.activity)
         setThought(previous.thought || '')
-        saveEntry(true)
+        saveEntry()
       }
     })
   }
