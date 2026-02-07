@@ -36,7 +36,7 @@ jobs:
         working-directory: mobile
       - name: Build Android APK
         if: steps.expo-token.outputs.has_token == 'true'
-        run: npx eas build --platform android --profile preview --non-interactive
+        run: npx eas-cli build --platform android --profile preview --non-interactive
         working-directory: mobile
       - name: Skip build (missing EXPO_TOKEN)
         if: steps.expo-token.outputs.has_token != 'true'
