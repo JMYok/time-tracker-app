@@ -4,11 +4,10 @@ interface TimelineNavigationProps {
   selectedDate: Date
   onPrevious: () => void
   onNext: () => void
-  onToday?: () => void
   onGoToNow?: () => void
 }
 
-export function TimelineNavigation({ selectedDate, onPrevious, onNext, onToday, onGoToNow }: TimelineNavigationProps) {
+export function TimelineNavigation({ selectedDate, onPrevious, onNext, onGoToNow }: TimelineNavigationProps) {
   const formatDate = (date: Date): string => {
     const month = date.getMonth() + 1
     const day = date.getDate()

@@ -9,7 +9,6 @@ on:
 
 jobs:
   build:
-    if: ${{ secrets.EXPO_TOKEN != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,13 +17,27 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: mobile/package-lock.json
+      - name: Check Expo token
+        id: expo-token
+        run: |
+          if [ -n "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_token=false" >> $GITHUB_OUTPUT
+          fi
       - uses: expo/expo-github-action@v8
+        if: steps.expo-token.outputs.has_token == 'true'
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Install dependencies
+        if: steps.expo-token.outputs.has_token == 'true'
         run: npm ci
         working-directory: mobile
       - name: Build Android APK
+        if: steps.expo-token.outputs.has_token == 'true'
         run: npx eas build --platform android --profile preview --non-interactive
         working-directory: mobile
+      - name: Skip build (missing EXPO_TOKEN)
+        if: steps.expo-token.outputs.has_token != 'true'
+        run: echo "EXPO_TOKEN is not set. Skipping EAS build."

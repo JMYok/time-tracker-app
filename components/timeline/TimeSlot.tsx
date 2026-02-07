@@ -45,7 +45,7 @@ export function TimeSlot({
       setActivity('')
       setThought('')
     }
-  }, [slot.entry?.id, slot.entry?.activity, slot.entry?.thought, isEditing])
+  }, [slot.entry, isEditing])
 
   const activityInputRef = useRef<HTMLInputElement>(null)
   const thoughtInputRef = useRef<HTMLTextAreaElement>(null)
@@ -128,6 +128,7 @@ export function TimeSlot({
     [
       activity,
       thought,
+      isSaving,
       slot.startTime,
       slot.endTime,
       slot.entry?.id,
@@ -153,11 +154,11 @@ export function TimeSlot({
     activityInputRef.current?.focus()
   }
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = useCallback(() => {
     setActivity(slot.entry?.activity || '')
     setThought(slot.entry?.thought || '')
     setIsEditing(false)
-  }
+  }, [slot.entry?.activity, slot.entry?.thought])
 
   useEffect(() => {
     if (!isEditing) return
@@ -171,7 +172,7 @@ export function TimeSlot({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isEditing])
+  }, [isEditing, handleCancelEdit])
 
   const handleMouseDown = () => {
     if (isEditing) return

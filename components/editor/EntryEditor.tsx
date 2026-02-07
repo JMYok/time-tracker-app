@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
 interface EntryEditorProps {
@@ -25,8 +25,6 @@ export function EntryEditor({
   const activityInputRef = useRef<HTMLInputElement>(null)
   const thoughtInputRef = useRef<HTMLTextAreaElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const [isFocused, setIsFocused] = useState(false)
-
   // Handle tap outside to dismiss keyboard
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
@@ -38,22 +36,15 @@ export function EntryEditor({
         if (document.activeElement instanceof HTMLElement) {
           document.activeElement.blur()
         }
-        setIsFocused(false)
       }
-    }
-
-    const handleFocusIn = () => {
-      setIsFocused(true)
     }
 
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('touchstart', handleClickOutside)
-    containerRef.current?.addEventListener('focusin', handleFocusIn)
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('touchstart', handleClickOutside)
-      containerRef.current?.removeEventListener('focusin', handleFocusIn)
     }
   }, [])
 

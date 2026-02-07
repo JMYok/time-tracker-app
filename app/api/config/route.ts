@@ -23,7 +23,7 @@ export async function GET() {
 
     const config = JSON.parse(configRecord.value)
     // Remove sensitive data from response
-    const { zhipuApiKey, timeBlockDuration, ...safeConfig } = config
+    const { zhipuApiKey, ...safeConfig } = config
     const maskedKey = zhipuApiKey ? '*'.repeat(String(zhipuApiKey).length) : ''
 
     return NextResponse.json({

@@ -41,7 +41,6 @@ export function TimeSlotEditor({
     isSaving,
     lastSavedAt,
     openEditor,
-    closeEditor,
     updateField,
     reset
   } = useEntryForm({

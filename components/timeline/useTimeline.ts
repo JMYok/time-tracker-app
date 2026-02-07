@@ -14,7 +14,7 @@ const formatDateKey = (date: Date): string => {
 const generateTimeSlots = (): Omit<TimeSlot, 'status' | 'entry' | 'isCurrentSlot'>[] => {
   const slots: Omit<TimeSlot, 'status' | 'entry' | 'isCurrentSlot'>[] = []
   for (let hour = 0; hour < 24; hour++) {
-    for (let minute of [0, 30]) {
+    for (const minute of [0, 30]) {
       const startTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
       const endHour = minute === 30 ? hour + 1 : hour
       const endMinute = minute === 30 ? 0 : 30
@@ -90,7 +90,7 @@ export function useTimeline(initialDate?: Date): UseTimelineReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [selectedDate, formatDateKey])
+  }, [selectedDate])
 
   // Fetch entries on date change
   useEffect(() => {

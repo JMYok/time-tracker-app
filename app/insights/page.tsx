@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface AnalysisData {
@@ -36,11 +36,7 @@ export default function InsightsPage() {
   const [rangeLoading, setRangeLoading] = useState(false)
   const [rangeError, setRangeError] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadSavedDocs()
-  }, [date])
-
-  const loadSavedDocs = async () => {
+  const loadSavedDocs = useCallback(async () => {
     setDocsLoading(true)
     setDocsError(null)
 
@@ -60,7 +56,11 @@ export default function InsightsPage() {
     } finally {
       setDocsLoading(false)
     }
-  }
+  }, [date])
+
+  useEffect(() => {
+    loadSavedDocs()
+  }, [loadSavedDocs])
 
   const analyzeDay = async () => {
     setIsAnalyzing(true)

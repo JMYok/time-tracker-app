@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { useTimeline, type TimeSlot } from './useTimeline'
 import { TimelineNavigation } from './TimelineNavigation'
 import { TimeSlot as TimeSlotComponent } from './TimeSlot'
@@ -10,7 +10,7 @@ interface TimelineViewProps {
 }
 
 export function TimelineView({ onSlotClick }: TimelineViewProps) {
-  const { timeSlots, selectedDate, isLoading, goToPreviousDay, goToNextDay, goToToday, goToNow, refreshEntries, upsertEntry, removeEntry } = useTimeline()
+  const { timeSlots, selectedDate, isLoading, goToPreviousDay, goToNextDay, goToNow, refreshEntries, upsertEntry, removeEntry } = useTimeline()
   const containerRef = useRef<HTMLDivElement>(null)
   const currentSlotRef = useRef<HTMLDivElement>(null)
   const lastAutoScrollDateKeyRef = useRef<string | null>(null)
@@ -28,10 +28,6 @@ export function TimelineView({ onSlotClick }: TimelineViewProps) {
   const handleNavigationNext = useCallback(() => {
     goToNextDay()
   }, [goToNextDay])
-
-  const handleNavigationToday = useCallback(() => {
-    goToToday()
-  }, [goToToday])
 
   const handleNavigationGoToNow = useCallback(() => {
     goToNow()
@@ -98,7 +94,6 @@ export function TimelineView({ onSlotClick }: TimelineViewProps) {
         selectedDate={selectedDate}
         onPrevious={handleNavigationPrevious}
         onNext={handleNavigationNext}
-        onToday={handleNavigationToday}
         onGoToNow={handleNavigationGoToNow}
       />
 
