@@ -29,7 +29,10 @@
     },
     "extra": {
       "apiBaseUrl": "https://your-vercel-domain.vercel.app",
-      "appToken": "CHANGE_ME"
+      "appToken": "CHANGE_ME",
+      "eas": {
+        "projectId": "2593dd15-8245-4590-8024-77197f072f6f"
+      }
     }
   }
 }
