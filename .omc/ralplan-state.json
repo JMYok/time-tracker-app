@@ -1,0 +1,12 @@
+{
+  "active": true,
+  "mode": "ralplan",
+  "iteration": 4,
+  "max_iterations": 5,
+  "plan_path": ".omc/plans/bug-fix-time-tracker.md",
+  "current_phase": "approved",
+  "started_at": "2025-02-06T10:00:00Z",
+  "completed_at": "2025-02-06T12:00:00Z",
+  "task_description": "bug修复：无法编辑内容、无法新增内容。多次通信没有解决问题。",
+  "status": "approved_for_implementation"
+}

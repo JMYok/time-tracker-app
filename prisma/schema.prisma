@@ -1,0 +1,62 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model TimeEntry {
+  id               String    @id @default(cuid())
+  date             String    // Format: YYYY-MM-DD
+  startTime        String    // Format: HH:MM
+  endTime          String    // Format: HH:MM
+  activity         String
+  thought          String?
+  isSameAsPrevious Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([date, startTime])
+  @@index([date])
+}
+
+model DailyAnalysis {
+  id               String    @id @default(cuid())
+  date             String    @unique // Format: YYYY-MM-DD
+  summary          String
+  timeDistribution String    // JSON
+  patterns         String    // JSON array
+  insights         String    // JSON array
+  focusScore       Int
+  highlights       String    // JSON array
+  improvements     String    // JSON array
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([date])
+}
+
+model AppConfig {
+  id        String    @id @default(cuid())
+  key       String    @unique
+  value     String    // JSON
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model SavedNote {
+  id         String    @id @default(cuid())
+  content    String
+  sourceDate String?   // Format: YYYY-MM-DD
+  type       String    // e.g., "insight", "analysis", "custom"
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}

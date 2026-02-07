@@ -1,26 +1,101 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* Deep Dark Mode - Apple-style Minimalism */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg-primary: #0A0A0A;
+  --color-bg-secondary: #141414;
+  --color-bg-tertiary: #1A1A1A;
+  --color-text-primary: #E5E5E5;
+  --color-text-secondary: #737373;
+  --color-text-tertiary: #525252;
+  --color-accent-primary: #3B82F6;
+  --color-accent-secondary: #F59E0B;
+  --color-border-primary: #262626;
+  --color-border-highlight: #3B82F6;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Define custom utilities */
+  --color-background: #0A0A0A;
+  --color-foreground: #E5E5E5;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  /* Backgrounds */
+  --background: #0A0A0A;
+  --bg-primary: #0A0A0A;
+  --bg-secondary: #141414;
+  --bg-tertiary: #1A1A1A;
+
+  /* Text */
+  --foreground: #E5E5E5;
+  --text-primary: #E5E5E5;
+  --text-secondary: #737373;
+  --text-tertiary: #525252;
+
+  /* Accents */
+  --accent: #3B82F6;
+  --accent-primary: #3B82F6;
+  --accent-secondary: #F59E0B;
+  --accent-foreground: #0A0A0A;
+
+  /* Borders */
+  --border: #262626;
+  --border-primary: #262626;
+  --border-highlight: #3B82F6;
+  --input: #141414;
+
+  /* Card */
+  --card: #141414;
+  --card-foreground: #E5E5E5;
+
+  /* UI Elements */
+  --primary: #3B82F6;
+  --primary-foreground: #0A0A0A;
+  --secondary: #262626;
+  --secondary-foreground: #E5E5E5;
+  --muted: #141414;
+  --muted-foreground: #737373;
+  --ring: #3B82F6;
+  --destructive: #EF4444;
+  --destructive-foreground: #E5E5E5;
+
+  /* Typography */
+  --radius: 0.5rem;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: transparent;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  *:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "liga" 1, "calt" 1;
+    font-variant-ligatures: common-ligatures;
+  }
+
+  /* Input styling - Google Material Design inspired */
+  input, textarea {
+    font-family: inherit;
+    border: none;
+    outline: none;
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: var(--text-tertiary);
+    opacity: 1;
+  }
 }
