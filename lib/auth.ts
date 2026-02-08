@@ -13,7 +13,7 @@ export const getAccessToken = async () => {
   try {
     const config = JSON.parse(configRecord.value || '{}')
     return typeof config.accessToken === 'string' ? config.accessToken : null
-  } catch (error) {
+  } catch {
     return null
   }
 }

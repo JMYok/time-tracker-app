@@ -30,7 +30,7 @@ export const SettingsScreen = () => {
           setConfig(nextConfig)
         }
         await writeConfigCache(nextConfig)
-      } catch (error) {
+      } catch {
         // ignore
       }
     }
@@ -54,7 +54,7 @@ export const SettingsScreen = () => {
       await saveConfig(payload)
       await writeConfigCache({ ...config, zhipuApiKeyMasked: Boolean(config.zhipuApiKey) })
       setStatus('success')
-    } catch (error) {
+    } catch {
       setStatus('error')
     } finally {
       setIsSaving(false)

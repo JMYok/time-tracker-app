@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
 import Constants from 'expo-constants'
 import { analyzeDay, AnalysisData, fetchDocuments, saveDocument, deleteDocument, analyzeRange } from '../api/analysis'
@@ -26,20 +26,20 @@ export const InsightsScreen = () => {
   const [rangeSummary, setRangeSummary] = useState<string | null>(null)
   const [rangeError, setRangeError] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadDocs()
-  }, [date])
-
-  const loadDocs = async () => {
+  const loadDocs = useCallback(async () => {
     try {
       const result = await fetchDocuments(date)
       setDocs(result.data || [])
       setDocsError(null)
-    } catch (error) {
+    } catch {
       setDocs([])
       setDocsError('获取文档失败')
     }
-  }
+  }, [date])
+
+  useEffect(() => {
+    loadDocs()
+  }, [loadDocs])
 
   const handleAnalyze = async () => {
     setIsAnalyzing(true)
@@ -49,8 +49,8 @@ export const InsightsScreen = () => {
     try {
       const result = await analyzeDay(date)
       setAnalysisDraft(result.data)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : ''
+    } catch (err) {
+      const message = err instanceof Error ? err.message : ''
       if (message.includes('No entries found for this date')) {
         setAnalysisError('今天还没有记录，先记几条再分析。')
       } else {
@@ -69,13 +69,25 @@ export const InsightsScreen = () => {
     lines.push(analysis.summary || '')
     lines.push('')
     lines.push('## 洞察')
-    analysis.insights.length ? analysis.insights.forEach((i) => lines.push(`- ${i}`)) : lines.push('- 暂无')
+    if (analysis.insights.length) {
+      analysis.insights.forEach((item) => lines.push(`- ${item}`))
+    } else {
+      lines.push('- 暂无')
+    }
     lines.push('')
     lines.push('## 做得好的点')
-    analysis.highlights.length ? analysis.highlights.forEach((i) => lines.push(`- ${i}`)) : lines.push('- 暂无')
+    if (analysis.highlights.length) {
+      analysis.highlights.forEach((item) => lines.push(`- ${item}`))
+    } else {
+      lines.push('- 暂无')
+    }
     lines.push('')
     lines.push('## 改进建议')
-    analysis.improvements.length ? analysis.improvements.forEach((i) => lines.push(`- ${i}`)) : lines.push('- 暂无')
+    if (analysis.improvements.length) {
+      analysis.improvements.forEach((item) => lines.push(`- ${item}`))
+    } else {
+      lines.push('- 暂无')
+    }
     lines.push('')
     lines.push('## 时间分布（小时）')
     Object.entries(analysis.timeDistribution || {}).forEach(([key, value]) => {
@@ -91,7 +103,7 @@ export const InsightsScreen = () => {
       const content = analysisToMarkdown(analysisDraft)
       await saveDocument({ date, content })
       await loadDocs()
-    } catch (error) {
+    } catch {
       setAnalysisError('保存失败')
     } finally {
       setIsSaving(false)
@@ -102,7 +114,7 @@ export const InsightsScreen = () => {
     try {
       await deleteDocument(id)
       await loadDocs()
-    } catch (error) {
+    } catch {
       setDocsError('删除失败')
     }
   }
@@ -113,7 +125,7 @@ export const InsightsScreen = () => {
     try {
       const result = await analyzeRange(range)
       setRangeSummary(result.data?.content || '')
-    } catch (error) {
+    } catch {
       setRangeError('回顾失败')
     }
   }
@@ -216,16 +228,18 @@ export const InsightsScreen = () => {
           </View>
           <View style={styles.blockCard}>
             <Text style={styles.blockTitle}>时间分布</Text>
-            {Object.keys(analysisDraft.timeDistribution || {}).length === 0
-              ? <Text style={styles.blockText}>暂无</Text>
-              : Object.entries(analysisDraft.timeDistribution || {}).map(([key, value]) => (
+            {Object.keys(analysisDraft.timeDistribution || {}).length === 0 ? (
+              <Text style={styles.blockText}>暂无</Text>
+            ) : (
+              Object.entries(analysisDraft.timeDistribution || {}).map(([key, value]) => (
                 <View key={key} style={styles.listRow}>
                   <Text style={styles.listDot}>•</Text>
                   <Text style={styles.listText}>
                     {key}: {typeof value === 'number' ? value.toFixed(1) : value}
                   </Text>
                 </View>
-              ))}
+              ))
+            )}
           </View>
         </View>
       )}

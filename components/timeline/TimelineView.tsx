@@ -6,11 +6,7 @@ import { authFetch } from '@/lib/auth-client'
 import { TimelineNavigation } from './TimelineNavigation'
 import { TimeSlot as TimeSlotComponent } from './TimeSlot'
 
-interface TimelineViewProps {
-  onSlotClick?: (slot: TimeSlot) => void
-}
-
-export function TimelineView({ onSlotClick }: TimelineViewProps) {
+export function TimelineView() {
   const { timeSlots, selectedDate, isLoading, goToPreviousDay, goToNextDay, goToNow, refreshEntries, upsertEntry, removeEntry } = useTimeline()
   const containerRef = useRef<HTMLDivElement>(null)
   const currentSlotRef = useRef<HTMLDivElement>(null)

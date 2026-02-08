@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       if (typeof body?.token === 'string') {
         bodyToken = body.token
       }
-    } catch (error) {
+    } catch {
       // ignore body parse errors
     }
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Failed to verify token' }, { status: 500 })
   }
 }

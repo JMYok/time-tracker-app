@@ -57,7 +57,7 @@ export const TokenGate = ({ children }: TokenGateProps) => {
         return
       }
       setIsAuthed(true)
-    } catch (err) {
+    } catch {
       setError('验证失败')
     } finally {
       setIsChecking(false)

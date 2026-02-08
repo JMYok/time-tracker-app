@@ -122,7 +122,7 @@ export function useTimeline(initialDate?: Date): UseTimelineReturn {
   }, [])
 
   // Get current time slot
-  const getCurrentTimeSlot = (): { startTime: string; endTime: string } | null => {
+  const getCurrentTimeSlot = useCallback((): { startTime: string; endTime: string } | null => {
     const currentHour = currentTime.getHours()
     const currentMinute = currentTime.getMinutes()
 
@@ -135,7 +135,7 @@ export function useTimeline(initialDate?: Date): UseTimelineReturn {
     const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
 
     return { startTime, endTime }
-  }
+  }, [currentTime])
 
   // Match entries with time slots and determine status
   const timeSlots = useMemo(() => {
@@ -165,7 +165,7 @@ export function useTimeline(initialDate?: Date): UseTimelineReturn {
         isCurrentSlot
       }
     })
-  }, [entries, selectedDate, currentTime])
+  }, [entries, selectedDate, currentTime, getCurrentTimeSlot])
 
   // Navigation functions
   const goToPreviousDay = () => {

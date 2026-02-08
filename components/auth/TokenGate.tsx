@@ -8,23 +8,29 @@ interface TokenGateProps {
 }
 
 export function TokenGate({ children }: TokenGateProps) {
-  const [token, setToken] = useState('')
+  const [initialToken] = useState(() => getStoredToken() || '')
+  const [token, setToken] = useState(initialToken)
   const [isAuthed, setIsAuthed] = useState(false)
-  const [isChecking, setIsChecking] = useState(true)
+  const [isChecking, setIsChecking] = useState(Boolean(initialToken))
   const [error, setError] = useState<string | null>(null)
 
+  const verifyToken = async (value: string) => {
+    const response = await authFetch('/api/auth/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${value}` },
+      body: JSON.stringify({ token: value }),
+    })
+    return response.ok
+  }
+
   useEffect(() => {
-    const stored = getStoredToken()
-    if (stored) {
-      setToken(stored)
-      verifyToken(stored)
+    if (initialToken) {
+      verifyToken(initialToken)
         .then((ok) => {
           setIsAuthed(ok)
           if (!ok) clearStoredToken()
         })
         .finally(() => setIsChecking(false))
-    } else {
-      setIsChecking(false)
     }
 
     const handleInvalid = () => {
@@ -35,16 +41,7 @@ export function TokenGate({ children }: TokenGateProps) {
 
     window.addEventListener('auth:invalid', handleInvalid)
     return () => window.removeEventListener('auth:invalid', handleInvalid)
-  }, [])
-
-  const verifyToken = async (value: string) => {
-    const response = await authFetch('/api/auth/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${value}` },
-      body: JSON.stringify({ token: value }),
-    })
-    return response.ok
-  }
+  }, [initialToken])
 
   const handleSubmit = async () => {
     setError(null)

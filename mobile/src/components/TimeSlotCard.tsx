@@ -7,7 +7,6 @@ import { timelineLayout } from './timelineLayout'
 
 interface TimeSlotCardProps {
   startTime: string
-  endTime: string
   isCurrent: boolean
   entry?: TimeEntry
   isSelected?: boolean
@@ -19,7 +18,6 @@ interface TimeSlotCardProps {
 
 export const TimeSlotCard = ({
   startTime,
-  endTime,
   isCurrent,
   entry,
   isSelected,

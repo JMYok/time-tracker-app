@@ -40,7 +40,7 @@ export const TimelineScreen = () => {
           setEntries(fresh)
           await writeEntriesCache(dateKey, fresh)
         }
-      } catch (error) {
+      } catch {
         if (isMounted) {
           const cached = await readEntriesCache(dateKey)
           setEntries(cached || [])
@@ -179,9 +179,9 @@ export const TimelineScreen = () => {
               .then((result) => {
                 if (result.data) upsertEntry(result.data)
               })
-              .catch((error) => {
-                console.warn('Failed to sync entry update', error)
-              })
+                  .catch((err) => {
+                    console.warn('Failed to sync entry update', err)
+                  })
             return
           }
 
@@ -314,7 +314,6 @@ export const TimelineScreen = () => {
             return (
               <TimeSlotCard
                 startTime={item.startTime}
-                endTime={item.endTime}
                 isCurrent={isCurrent}
                 entry={entry}
                 isSelected={selectedSlots.includes(item.startTime)}
@@ -360,16 +359,16 @@ export const TimelineScreen = () => {
                           upsertEntry(result.data)
                         }
                       })
-                      .catch((error) => {
-                        console.warn('Failed to sync entry create', error)
+                      .catch((err) => {
+                        console.warn('Failed to sync entry create', err)
                       })
                   }
                 }}
                 onDelete={async () => {
                   if (!entry) return
                   removeEntry(entry.id)
-                  void deleteEntry(entry.id).catch((error) => {
-                    console.warn('Failed to sync entry delete', error)
+                  void deleteEntry(entry.id).catch((err) => {
+                    console.warn('Failed to sync entry delete', err)
                   })
                 }}
               />
