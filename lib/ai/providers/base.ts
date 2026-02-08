@@ -14,7 +14,9 @@ export interface TimeEntry {
 
 export interface DailyAnalysisResult {
   summary: string
+  dailyNarrative?: string
   timeDistribution: Record<string, number>
+  energyMoodCurve?: Record<string, string>
   patterns: string[]
   insights: string[]
   focusScore: number

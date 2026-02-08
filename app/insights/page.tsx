@@ -7,7 +7,9 @@ import { useRouter } from 'next/navigation'
 
 interface AnalysisData {
   summary: string
+  dailyNarrative?: string
   timeDistribution: Record<string, number>
+  energyMoodCurve?: Record<string, string>
   patterns: string[]
   insights: string[]
   focusScore: number
@@ -103,6 +105,18 @@ export default function InsightsPage() {
     lines.push('')
     lines.push('## 总结')
     lines.push(analysis.summary || '')
+    if (analysis.dailyNarrative) {
+      lines.push('')
+      lines.push('## 日记式总结')
+      lines.push(analysis.dailyNarrative)
+    }
+    if (analysis.energyMoodCurve && Object.keys(analysis.energyMoodCurve).length > 0) {
+      lines.push('')
+      lines.push('## 情绪与能量曲线')
+      Object.entries(analysis.energyMoodCurve).forEach(([key, value]) => {
+        lines.push(`- ${key}: ${value}`)
+      })
+    }
     lines.push('')
     lines.push('## 洞察')
     if (analysis.insights.length) {
@@ -350,6 +364,29 @@ export default function InsightsPage() {
                 {analysisDraft.summary}
               </p>
             </div>
+
+            {analysisDraft.dailyNarrative && (
+              <div className="bg-bg-secondary rounded-xl border border-border-primary p-4">
+                <h2 className="text-base font-medium text-text-primary mb-2">日记式总结</h2>
+                <p className="text-text-secondary text-sm leading-relaxed whitespace-pre-wrap">
+                  {analysisDraft.dailyNarrative}
+                </p>
+              </div>
+            )}
+
+            {analysisDraft.energyMoodCurve && Object.keys(analysisDraft.energyMoodCurve).length > 0 && (
+              <div className="bg-bg-secondary rounded-xl border border-border-primary p-4">
+                <h2 className="text-base font-medium text-text-primary mb-3">情绪与能量曲线</h2>
+                <div className="space-y-2">
+                  {Object.entries(analysisDraft.energyMoodCurve).map(([period, value]) => (
+                    <div key={period} className="flex items-center justify-between">
+                      <span className="text-text-secondary text-sm">{period}</span>
+                      <span className="text-text-primary text-sm font-medium">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="bg-bg-secondary rounded-xl border border-border-primary p-4">
               <h2 className="text-base font-medium text-text-primary mb-3">专注度评分</h2>

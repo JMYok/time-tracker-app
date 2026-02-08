@@ -82,7 +82,9 @@ export class ZhipuProvider implements AIProvider {
 
       return {
         summary: parsed.summary || '',
+        dailyNarrative: parsed.dailyNarrative || '',
         timeDistribution: parsed.timeDistribution || {},
+        energyMoodCurve: parsed.energyMoodCurve || {},
         patterns: parsed.patterns || [],
         insights: parsed.insights || [],
         focusScore: parsed.focusScore || 50,
@@ -98,7 +100,9 @@ export class ZhipuProvider implements AIProvider {
   private getEmptyResult(): DailyAnalysisResult {
     return {
       summary: '暂无足够的数据进行分析。',
+      dailyNarrative: '',
       timeDistribution: {},
+      energyMoodCurve: {},
       patterns: [],
       insights: [],
       focusScore: 50,

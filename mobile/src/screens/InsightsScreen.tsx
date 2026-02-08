@@ -67,6 +67,18 @@ export const InsightsScreen = () => {
     lines.push('')
     lines.push('## 总结')
     lines.push(analysis.summary || '')
+    if (analysis.dailyNarrative) {
+      lines.push('')
+      lines.push('## 日记式总结')
+      lines.push(analysis.dailyNarrative)
+    }
+    if (analysis.energyMoodCurve && Object.keys(analysis.energyMoodCurve).length > 0) {
+      lines.push('')
+      lines.push('## 情绪与能量曲线')
+      Object.entries(analysis.energyMoodCurve).forEach(([key, value]) => {
+        lines.push(`- ${key}: ${value}`)
+      })
+    }
     lines.push('')
     lines.push('## 洞察')
     if (analysis.insights.length) {
@@ -214,6 +226,23 @@ export const InsightsScreen = () => {
             <Text style={styles.blockTitle}>总结</Text>
             <Text style={styles.blockText}>{analysisDraft.summary || '暂无'}</Text>
           </View>
+          {analysisDraft.dailyNarrative ? (
+            <View style={styles.blockCard}>
+              <Text style={styles.blockTitle}>日记式总结</Text>
+              <Text style={styles.blockText}>{analysisDraft.dailyNarrative}</Text>
+            </View>
+          ) : null}
+          {analysisDraft.energyMoodCurve && Object.keys(analysisDraft.energyMoodCurve).length > 0 ? (
+            <View style={styles.blockCard}>
+              <Text style={styles.blockTitle}>情绪与能量曲线</Text>
+              {Object.entries(analysisDraft.energyMoodCurve).map(([key, value]) => (
+                <View key={key} style={styles.listRow}>
+                  <Text style={styles.listDot}>•</Text>
+                  <Text style={styles.listText}>{key}: {value}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
           <View style={styles.blockCard}>
             <Text style={styles.blockTitle}>洞察</Text>
             {renderBulletList(analysisDraft.insights)}
