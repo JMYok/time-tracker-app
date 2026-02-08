@@ -303,3 +303,35 @@ export function TimeSlot({
                 {isCurrent ? '记录此刻...' : ''}
               </p>
             )}
+
+            {!activity && !isCurrent && (
+              <p className="text-[13px] text-[#1A1A1A]">点击记录</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {showConfirm && (
+        <div className="absolute inset-0 bg-[#0A0A0A]/90 backdrop-blur-md rounded-2xl flex items-center justify-center z-10">
+          <div className="px-5 py-4 w-full">
+            <p className="text-[14px] text-[#E8E8E8] mb-4 text-center font-medium">覆盖已有内容？</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="flex-1 py-2.5 text-[13px] text-[#737373] hover:text-[#E8E8E8] transition-colors bg-[#1A1A1A] rounded-xl"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmOverwrite}
+                className="flex-1 py-2.5 text-[13px] bg-[#3B82F6] text-white rounded-xl hover:bg-[#2563EB] active:scale-[0.98] transition-all shadow-lg shadow-blue-500/20"
+              >
+                覆盖
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
