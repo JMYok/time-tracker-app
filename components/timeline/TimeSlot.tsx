@@ -8,6 +8,8 @@ const MAX_RETRIES = 50
 
 interface TimeSlotProps {
   slot: TimeSlotType
+  dateKey: string
+  isSelected?: boolean
   onPreviousEntryRequest?: () => Promise<{ activity: string; thought: string | null } | null>
   onEntryChange?: () => Promise<void>
   onEntryUpsert?: (entry: TimeEntry) => void
@@ -17,6 +19,8 @@ interface TimeSlotProps {
 
 export function TimeSlot({
   slot,
+  dateKey,
+  isSelected,
   onPreviousEntryRequest,
   onEntryChange,
   onEntryUpsert,
@@ -25,22 +29,26 @@ export function TimeSlot({
 }: TimeSlotProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [activity, setActivity] = useState(slot.entry?.activity || slot.entry?.thought || '')
+  const [isSameAsPrevious, setIsSameAsPrevious] = useState(Boolean(slot.entry?.isSameAsPrevious))
   const [isSaving, setIsSaving] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const hasLocalDraftRef = useRef(false)
   const cardRef = useRef<HTMLDivElement>(null)
+  const pendingPreviousRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (isEditing) return
 
     if (slot.entry) {
       setActivity(slot.entry.activity || slot.entry.thought || '')
+      setIsSameAsPrevious(Boolean(slot.entry.isSameAsPrevious))
       hasLocalDraftRef.current = true
       return
     }
 
     if (!hasLocalDraftRef.current) {
       setActivity('')
+      setIsSameAsPrevious(false)
     }
   }, [slot.entry, isEditing])
 
@@ -48,7 +56,10 @@ export function TimeSlot({
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const saveEntry = useCallback(
-    async (retryCount: number = 0) => {
+    async (
+      retryCount: number = 0,
+      overrides?: { activity?: string; isSameAsPrevious?: boolean }
+    ) => {
       if (isSaving) return
       if (retryCount >= MAX_RETRIES) {
         console.error('Save failed: Maximum retries exceeded')
@@ -56,9 +67,12 @@ export function TimeSlot({
         return
       }
 
+      const activityToSave = (overrides?.activity ?? activity).trim()
+      const sameAsPrevious = overrides?.isSameAsPrevious ?? isSameAsPrevious
+
       setIsSaving(true)
       try {
-        if (!activity.trim() && slot.entry?.id) {
+        if (!activityToSave && slot.entry?.id) {
           const deleteResponse = await fetch(`/api/entries/${slot.entry.id}`, {
             method: 'DELETE',
           })
@@ -76,17 +90,17 @@ export function TimeSlot({
           }
 
           hasLocalDraftRef.current = false
+          setIsSameAsPrevious(false)
           if (onEntrySave) {
             onEntrySave()
           }
           return
         }
 
-        if (!activity.trim()) {
+        if (!activityToSave) {
           return
         }
 
-        const today = new Date().toISOString().split('T')[0]
         const url = slot.entry?.id ? `/api/entries/${slot.entry.id}` : '/api/entries'
 
         const response = await fetch(url, {
@@ -94,8 +108,15 @@ export function TimeSlot({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(
             slot.entry?.id
-              ? { activity, thought: null }
-              : { date: today, startTime: slot.startTime, endTime: slot.endTime, activity, thought: null }
+              ? { activity: activityToSave, thought: null, isSameAsPrevious: sameAsPrevious }
+              : {
+                  date: dateKey,
+                  startTime: slot.startTime,
+                  endTime: slot.endTime,
+                  activity: activityToSave,
+                  thought: null,
+                  isSameAsPrevious: sameAsPrevious,
+                }
           ),
         })
 
@@ -105,6 +126,7 @@ export function TimeSlot({
         } else {
           const result = await response.json()
           hasLocalDraftRef.current = true
+          setIsSameAsPrevious(sameAsPrevious)
           if (onEntryUpsert && result?.data) {
             onEntryUpsert(result.data)
           } else if (onEntryChange) {
@@ -124,6 +146,8 @@ export function TimeSlot({
     [
       activity,
       isSaving,
+      isSameAsPrevious,
+      dateKey,
       slot.startTime,
       slot.endTime,
       slot.entry?.id,
@@ -136,6 +160,9 @@ export function TimeSlot({
 
   const handleActivityChange = (value: string) => {
     setActivity(value)
+    if (isSameAsPrevious) {
+      setIsSameAsPrevious(false)
+    }
     hasLocalDraftRef.current = true
   }
 
@@ -146,8 +173,9 @@ export function TimeSlot({
 
   const handleCancelEdit = useCallback(() => {
     setActivity(slot.entry?.activity || slot.entry?.thought || '')
+    setIsSameAsPrevious(Boolean(slot.entry?.isSameAsPrevious))
     setIsEditing(false)
-  }, [slot.entry?.activity, slot.entry?.thought])
+  }, [slot.entry?.activity, slot.entry?.thought, slot.entry?.isSameAsPrevious])
 
   useEffect(() => {
     if (!isEditing) return
@@ -185,26 +213,27 @@ export function TimeSlot({
       const previousText = previous.activity || previous.thought || ''
       if (!previousText) return
       if (activity) {
+        pendingPreviousRef.current = previousText
         setShowConfirm(true)
       } else {
         setActivity(previousText)
-        saveEntry()
+        setIsSameAsPrevious(true)
+        hasLocalDraftRef.current = true
+        pendingPreviousRef.current = null
+        void saveEntry(0, { activity: previousText, isSameAsPrevious: true })
       }
     }
   }
 
   const handleConfirmOverwrite = () => {
     setShowConfirm(false)
-    if (!onPreviousEntryRequest) return
-
-    onPreviousEntryRequest().then((previous) => {
-      if (previous) {
-        const previousText = previous.activity || previous.thought || ''
-        if (!previousText) return
-        setActivity(previousText)
-        saveEntry()
-      }
-    })
+    const previousText = pendingPreviousRef.current
+    if (!previousText) return
+    setActivity(previousText)
+    setIsSameAsPrevious(true)
+    hasLocalDraftRef.current = true
+    pendingPreviousRef.current = null
+    void saveEntry(0, { activity: previousText, isSameAsPrevious: true })
   }
 
   useEffect(() => {
@@ -215,6 +244,7 @@ export function TimeSlot({
 
   const isCurrent = slot.isCurrentSlot
   const hasContent = Boolean(slot.entry || activity)
+  const sameAsPrevious = isSameAsPrevious || Boolean(slot.entry?.isSameAsPrevious)
 
   return (
     <div
@@ -228,6 +258,8 @@ export function TimeSlot({
             ? 'bg-[#141414] border-[#2A2A2A] shadow-md min-h-[64px]'
             : 'bg-[#0A0A0A] border-[#1A1A1A] min-h-[64px] hover:border-[#2A2A2A]'
         }
+        ${sameAsPrevious && !isCurrent ? 'border-[#4C3A6B]' : ''}
+        ${isSelected ? 'border-[#3B82F6] bg-[#101318]' : ''}
         ${isEditing ? 'shadow-xl border-[#3B82F6]/60' : ''}
       `}
       onMouseDown={handleMouseDown}

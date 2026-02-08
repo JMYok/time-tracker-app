@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useCallback } from 'react'
-import { useTimeline, type TimeSlot } from './useTimeline'
+import { useEffect, useRef, useCallback, useState } from 'react'
+import { useTimeline, type TimeSlot, type TimeEntry } from './useTimeline'
 import { TimelineNavigation } from './TimelineNavigation'
 import { TimeSlot as TimeSlotComponent } from './TimeSlot'
 
@@ -15,6 +15,16 @@ export function TimelineView({ onSlotClick }: TimelineViewProps) {
   const currentSlotRef = useRef<HTMLDivElement>(null)
   const lastAutoScrollDateKeyRef = useRef<string | null>(null)
   const selectedDateKey = selectedDate.toISOString().split('T')[0]
+  const [selectedSlots, setSelectedSlots] = useState<string[]>([])
+  const [batchActivity, setBatchActivity] = useState('')
+  const [isBatchSaving, setIsBatchSaving] = useState(false)
+  const [isSelecting, setIsSelecting] = useState(false)
+  const selectionTimerRef = useRef<number | null>(null)
+  const selectionAnchorRef = useRef<number | null>(null)
+
+  const timeColumnWidth = 76
+  const dotSize = 10
+  const lineLeft = timeColumnWidth - dotSize / 2
 
   // Handle entry changes - refresh data from server to prevent stale state
   const handleEntryChange = useCallback(async () => {
@@ -33,6 +43,11 @@ export function TimelineView({ onSlotClick }: TimelineViewProps) {
     goToNow()
   }, [goToNow])
 
+  useEffect(() => {
+    setSelectedSlots([])
+    setBatchActivity('')
+  }, [selectedDateKey])
+
   // Auto-scroll to current time slot (only once per date, not during editing)
   useEffect(() => {
     const dateKey = selectedDate.toISOString().split('T')[0]
@@ -49,7 +64,6 @@ export function TimelineView({ onSlotClick }: TimelineViewProps) {
 
   // Handle request for previous entry
   const handlePreviousEntryRequest = useCallback(async (currentSlot: TimeSlot) => {
-    const today = new Date().toISOString().split('T')[0]
     const date = selectedDate.toISOString().split('T')[0]
 
     const response = await fetch(
@@ -67,6 +81,116 @@ export function TimelineView({ onSlotClick }: TimelineViewProps) {
     }
     return null
   }, [selectedDate])
+
+  const updateSelectionRange = useCallback((startIndex: number, currentIndex: number) => {
+    const start = Math.min(startIndex, currentIndex)
+    const end = Math.max(startIndex, currentIndex)
+    const range = timeSlots.slice(start, end + 1).map((slot) => slot.startTime)
+    setSelectedSlots(range)
+  }, [timeSlots])
+
+  const handleTimePointerDown = useCallback((index: number) => {
+    if (selectionTimerRef.current) {
+      window.clearTimeout(selectionTimerRef.current)
+    }
+    selectionTimerRef.current = window.setTimeout(() => {
+      selectionAnchorRef.current = index
+      setIsSelecting(true)
+      updateSelectionRange(index, index)
+    }, 250)
+  }, [updateSelectionRange])
+
+  const handleTimePointerEnter = useCallback((index: number) => {
+    if (!isSelecting || selectionAnchorRef.current === null) return
+    updateSelectionRange(selectionAnchorRef.current, index)
+  }, [isSelecting, updateSelectionRange])
+
+  const handlePointerUp = useCallback(() => {
+    if (selectionTimerRef.current) {
+      window.clearTimeout(selectionTimerRef.current)
+      selectionTimerRef.current = null
+    }
+    if (isSelecting) {
+      setIsSelecting(false)
+    }
+  }, [isSelecting])
+
+  useEffect(() => {
+    window.addEventListener('pointerup', handlePointerUp)
+    return () => {
+      window.removeEventListener('pointerup', handlePointerUp)
+    }
+  }, [handlePointerUp])
+
+  const clearSelection = () => {
+    setSelectedSlots([])
+    setBatchActivity('')
+  }
+
+  const handleBatchSave = useCallback(async () => {
+    const content = batchActivity.trim()
+    if (!content || isBatchSaving || selectedSlots.length === 0) return
+
+    setIsBatchSaving(true)
+    try {
+      await Promise.all(
+        selectedSlots.map(async (startTime) => {
+          const slot = timeSlots.find((item) => item.startTime === startTime)
+          if (!slot) return
+
+          if (slot.entry) {
+            const optimistic = { ...slot.entry, activity: content, thought: null, isSameAsPrevious: false }
+            upsertEntry(optimistic)
+            const response = await fetch(`/api/entries/${slot.entry.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ activity: content, thought: null, isSameAsPrevious: false }),
+            })
+            if (response.ok) {
+              const result = await response.json()
+              if (result?.data) {
+                upsertEntry(result.data)
+              }
+            }
+            return
+          }
+
+          const localEntry: TimeEntry = {
+            id: `local-${selectedDateKey}-${startTime}`,
+            date: selectedDateKey,
+            startTime,
+            endTime: slot.endTime,
+            activity: content,
+            thought: null,
+            isSameAsPrevious: false,
+          }
+          upsertEntry(localEntry)
+
+          const response = await fetch('/api/entries', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              date: selectedDateKey,
+              startTime,
+              endTime: slot.endTime,
+              activity: content,
+              thought: null,
+              isSameAsPrevious: false,
+            }),
+          })
+          if (response.ok) {
+            const result = await response.json()
+            if (result?.data) {
+              upsertEntry(result.data)
+            }
+          }
+        })
+      )
+    } finally {
+      setIsBatchSaving(false)
+      clearSelection()
+    }
+  }, [batchActivity, isBatchSaving, selectedSlots, selectedDateKey, timeSlots, upsertEntry])
 
   if (false && isLoading) {
     return (
@@ -116,8 +240,9 @@ export function TimelineView({ onSlotClick }: TimelineViewProps) {
         <div className="relative">
           {/* Vertical Timeline Line */}
           <div
-            className="absolute left-[70px] top-0 bottom-0 w-0.5 bg-gradient-to-b from-transparent via-[#2A2A2A] to-transparent"
+            className="absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-transparent via-[#2A2A2A] to-transparent"
             style={{
+              left: `${lineLeft}px`,
               background: 'linear-gradient(to bottom, transparent 0%, #2A2A2A 10%, #2A2A2A 90%, transparent 100%)'
             }}
           />
@@ -131,16 +256,22 @@ export function TimelineView({ onSlotClick }: TimelineViewProps) {
                 className="flex gap-4 items-stretch group relative"
               >
                 {/* Timeline Node & Time Label */}
-                <div className="relative flex items-center" style={{ minWidth: '70px' }}>
+                <div
+                  className="relative flex items-center select-none"
+                  style={{ minWidth: `${timeColumnWidth}px` }}
+                  onPointerDown={() => handleTimePointerDown(index)}
+                  onPointerEnter={() => handleTimePointerEnter(index)}
+                >
                   {/* Timeline Dot */}
                   <div className={`
-                    absolute right-0 w-2.5 h-2.5 rounded-full border-2 transition-all duration-300
+                    absolute right-0 rounded-full border-2 transition-all duration-300
                     ${slot.isCurrentSlot
                       ? 'border-[#3B82F6] bg-[#1A1A1A] scale-125 shadow-lg shadow-blue-500/30'
                       : 'border-[#3A3A3A] bg-[#0A0A0A] group-hover:border-[#4A4A4A] group-hover:scale-110'
                     }
-                    translate-x-1/2
-                  `} style={{ transform: 'translateX(-50%)' }}>
+                  `}
+                    style={{ width: `${dotSize}px`, height: `${dotSize}px`, transform: 'translateX(-50%)' }}
+                  >
                     {/* Inner dot for current slot */}
                     {slot.isCurrentSlot && (
                       <div className="absolute inset-0 flex items-center justify-center">
@@ -166,6 +297,8 @@ export function TimelineView({ onSlotClick }: TimelineViewProps) {
                 <div className="flex-1 pt-1 pb-1">
                   <TimeSlotComponent
                     slot={slot}
+                    dateKey={selectedDateKey}
+                    isSelected={selectedSlots.includes(slot.startTime)}
                     onPreviousEntryRequest={() => handlePreviousEntryRequest(slot)}
                     onEntryChange={handleEntryChange}
                     onEntryUpsert={upsertEntry}
@@ -175,6 +308,34 @@ export function TimelineView({ onSlotClick }: TimelineViewProps) {
               </div>
             ))}
           </div>
+
+          {selectedSlots.length > 1 && (
+            <div className="sticky bottom-4 mt-4 bg-[#141414] border border-[#262626] rounded-2xl p-3 flex flex-col gap-3 shadow-xl">
+              <div className="text-[12px] text-[#737373]">已选 {selectedSlots.length} 个时间段</div>
+              <textarea
+                value={batchActivity}
+                onChange={(e) => setBatchActivity(e.target.value)}
+                placeholder="批量填写内容"
+                rows={2}
+                className="minimal-scrollbar w-full bg-[#1A1A1A] text-[#E5E5E5] placeholder-[#525252] text-[14px] outline-none rounded-lg p-2 resize-none overflow-y-auto"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={clearSelection}
+                  className="px-3 py-2 text-[12px] text-[#737373] hover:text-[#E5E5E5] transition-colors bg-[#1A1A1A] rounded-xl"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleBatchSave}
+                  disabled={!batchActivity.trim() || isBatchSaving}
+                  className="px-3 py-2 text-[12px] bg-[#3B82F6] text-white rounded-xl hover:bg-[#2563EB] disabled:opacity-60 transition-colors"
+                >
+                  {isBatchSaving ? '保存中...' : '批量保存'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
