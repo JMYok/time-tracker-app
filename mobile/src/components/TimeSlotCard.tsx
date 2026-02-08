@@ -120,6 +120,11 @@ export const TimeSlotCard = ({
             <TextInput
               value={activity}
               onChangeText={handleChangeActivity}
+              multiline
+              numberOfLines={4}
+              scrollEnabled
+              showsVerticalScrollIndicator
+              textAlignVertical="top"
               placeholder="你在做什么？"
               placeholderTextColor={colors.textTertiary}
               style={styles.input}
@@ -226,9 +231,13 @@ const styles = StyleSheet.create({
   input: {
     color: colors.textPrimary,
     fontSize: 15,
+    lineHeight: 20,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    paddingBottom: 6,
+    paddingVertical: 6,
+    minHeight: 92,
+    maxHeight: 92,
+    textAlignVertical: 'top',
   },
   editorFooter: {
     alignItems: 'flex-end',

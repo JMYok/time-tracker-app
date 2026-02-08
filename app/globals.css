@@ -99,3 +99,21 @@
     opacity: 1;
   }
 }
+
+.minimal-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(229, 229, 229, 0.2) transparent;
+}
+
+.minimal-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(229, 229, 229, 0.2);
+  border-radius: 999px;
+}

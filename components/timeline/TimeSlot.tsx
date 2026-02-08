@@ -24,8 +24,7 @@ export function TimeSlot({
   onEntrySave,
 }: TimeSlotProps) {
   const [isEditing, setIsEditing] = useState(false)
-  const [activity, setActivity] = useState(slot.entry?.activity || '')
-  const [thought, setThought] = useState(slot.entry?.thought || '')
+  const [activity, setActivity] = useState(slot.entry?.activity || slot.entry?.thought || '')
   const [isSaving, setIsSaving] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const hasLocalDraftRef = useRef(false)
@@ -35,20 +34,17 @@ export function TimeSlot({
     if (isEditing) return
 
     if (slot.entry) {
-      setActivity(slot.entry.activity || '')
-      setThought(slot.entry.thought || '')
+      setActivity(slot.entry.activity || slot.entry.thought || '')
       hasLocalDraftRef.current = true
       return
     }
 
     if (!hasLocalDraftRef.current) {
       setActivity('')
-      setThought('')
     }
   }, [slot.entry, isEditing])
 
-  const activityInputRef = useRef<HTMLInputElement>(null)
-  const thoughtInputRef = useRef<HTMLTextAreaElement>(null)
+  const activityInputRef = useRef<HTMLTextAreaElement>(null)
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const saveEntry = useCallback(
@@ -62,7 +58,7 @@ export function TimeSlot({
 
       setIsSaving(true)
       try {
-        if (!activity.trim() && !thought.trim() && slot.entry?.id) {
+        if (!activity.trim() && slot.entry?.id) {
           const deleteResponse = await fetch(`/api/entries/${slot.entry.id}`, {
             method: 'DELETE',
           })
@@ -86,7 +82,7 @@ export function TimeSlot({
           return
         }
 
-        if (!activity.trim() && !thought.trim()) {
+        if (!activity.trim()) {
           return
         }
 
@@ -98,8 +94,8 @@ export function TimeSlot({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(
             slot.entry?.id
-              ? { activity, thought: thought || null }
-              : { date: today, startTime: slot.startTime, endTime: slot.endTime, activity, thought: thought || null }
+              ? { activity, thought: null }
+              : { date: today, startTime: slot.startTime, endTime: slot.endTime, activity, thought: null }
           ),
         })
 
@@ -127,7 +123,6 @@ export function TimeSlot({
     },
     [
       activity,
-      thought,
       isSaving,
       slot.startTime,
       slot.endTime,
@@ -144,19 +139,13 @@ export function TimeSlot({
     hasLocalDraftRef.current = true
   }
 
-  const handleThoughtChange = (value: string) => {
-    setThought(value)
-    hasLocalDraftRef.current = true
-  }
-
   const handleStartEdit = () => {
     setIsEditing(true)
     activityInputRef.current?.focus()
   }
 
   const handleCancelEdit = useCallback(() => {
-    setActivity(slot.entry?.activity || '')
-    setThought(slot.entry?.thought || '')
+    setActivity(slot.entry?.activity || slot.entry?.thought || '')
     setIsEditing(false)
   }, [slot.entry?.activity, slot.entry?.thought])
 
@@ -193,11 +182,12 @@ export function TimeSlot({
 
     const previous = await onPreviousEntryRequest()
     if (previous) {
-      if (activity || thought) {
+      const previousText = previous.activity || previous.thought || ''
+      if (!previousText) return
+      if (activity) {
         setShowConfirm(true)
       } else {
-        setActivity(previous.activity)
-        setThought(previous.thought || '')
+        setActivity(previousText)
         saveEntry()
       }
     }
@@ -209,8 +199,9 @@ export function TimeSlot({
 
     onPreviousEntryRequest().then((previous) => {
       if (previous) {
-        setActivity(previous.activity)
-        setThought(previous.thought || '')
+        const previousText = previous.activity || previous.thought || ''
+        if (!previousText) return
+        setActivity(previousText)
         saveEntry()
       }
     })
@@ -263,9 +254,8 @@ export function TimeSlot({
             </div>
 
             <div className="relative">
-              <input
+              <textarea
                 ref={activityInputRef}
-                type="text"
                 value={activity}
                 onChange={(e) => {
                   e.stopPropagation()
@@ -279,33 +269,9 @@ export function TimeSlot({
                     handleCancelEdit()
                   }
                 }}
-                placeholder="你在做什么？"
-                className="w-full bg-transparent text-[15px] text-[#E8E8E8] placeholder-[#3A3A3A] font-medium outline-none leading-relaxed tracking-tight"
-                style={{
-                  caretColor: '#3B82F6',
-                }}
-              />
-            </div>
-
-            <div className="relative">
-              <textarea
-                ref={thoughtInputRef}
-                value={thought}
-                onChange={(e) => {
-                  e.stopPropagation()
-                  handleThoughtChange(e.target.value)
-                }}
-                onFocus={(e) => e.stopPropagation()}
-                onKeyDown={(e) => {
-                  e.stopPropagation()
-                  if (e.key === 'Escape') {
-                    e.preventDefault()
-                    handleCancelEdit()
-                  }
-                }}
-                placeholder="想法或备注..."
-                rows={2}
-                className="w-full bg-transparent text-[14px] text-[#6B6B6B] placeholder-[#3A3A3A] outline-none resize-none leading-relaxed tracking-tight"
+                placeholder="\u4f60\u5728\u505a\u4ec0\u4e48\uff1f"
+                rows={4}
+                className="minimal-scrollbar w-full bg-transparent text-[15px] text-[#E8E8E8] placeholder-[#3A3A3A] font-medium outline-none leading-relaxed tracking-tight resize-none overflow-y-auto min-h-[96px] max-h-[96px]"
                 style={{
                   caretColor: '#3B82F6',
                 }}
@@ -337,41 +303,3 @@ export function TimeSlot({
                 {isCurrent ? '记录此刻...' : ''}
               </p>
             )}
-
-            {thought && (
-              <p className="text-[13px] text-[#6B6B6B] leading-snug tracking-tight">
-                {thought}
-              </p>
-            )}
-
-            {!activity && !isCurrent && (
-              <p className="text-[13px] text-[#1A1A1A]">点击记录</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {showConfirm && (
-        <div className="absolute inset-0 bg-[#0A0A0A]/90 backdrop-blur-md rounded-2xl flex items-center justify-center z-10">
-          <div className="px-5 py-4 w-full">
-            <p className="text-[14px] text-[#E8E8E8] mb-4 text-center font-medium">覆盖已有内容？</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="flex-1 py-2.5 text-[13px] text-[#737373] hover:text-[#E8E8E8] transition-colors bg-[#1A1A1A] rounded-xl"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleConfirmOverwrite}
-                className="flex-1 py-2.5 text-[13px] bg-[#3B82F6] text-white rounded-xl hover:bg-[#2563EB] active:scale-[0.98] transition-all shadow-lg shadow-blue-500/20"
-              >
-                覆盖
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
