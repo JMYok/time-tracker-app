@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import Constants from 'expo-constants'
 import { Feather } from '@expo/vector-icons'
 import { colors } from '../theme'
 import { formatDate, getWeekday } from '../utils/date'
@@ -43,7 +44,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: (Constants.statusBarHeight || 0) + 12,
+    paddingBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

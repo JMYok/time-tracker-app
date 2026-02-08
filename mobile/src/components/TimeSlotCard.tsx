@@ -1,41 +1,59 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { colors } from '../theme'
 import { TimeEntry } from '../api/entries'
+import { timelineLayout } from './timelineLayout'
 
 interface TimeSlotCardProps {
   startTime: string
   endTime: string
   isCurrent: boolean
   entry?: TimeEntry
-  onSave: (payload: { activity: string; thought: string | null }) => Promise<void>
+  isSelected?: boolean
+  onSave: (payload: { activity: string; thought: string | null; isSameAsPrevious?: boolean }) => Promise<void>
   onDelete: () => Promise<void>
+  onCopyPrevious?: () => void
+  onLayout?: (startTime: string, layout: { y: number; height: number }) => void
 }
 
-export const TimeSlotCard = ({ startTime, endTime, isCurrent, entry, onSave, onDelete }: TimeSlotCardProps) => {
+export const TimeSlotCard = ({
+  startTime,
+  endTime,
+  isCurrent,
+  entry,
+  isSelected,
+  onSave,
+  onDelete,
+  onCopyPrevious,
+  onLayout,
+}: TimeSlotCardProps) => {
   const [isEditing, setIsEditing] = useState(false)
   const [activity, setActivity] = useState(entry?.activity || '')
-  const [thought, setThought] = useState(entry?.thought || '')
   const [isSaving, setIsSaving] = useState(false)
+  const [hasManualEdit, setHasManualEdit] = useState(false)
 
   useEffect(() => {
     if (!isEditing) {
       setActivity(entry?.activity || '')
-      setThought(entry?.thought || '')
     }
-  }, [entry?.id, entry?.activity, entry?.thought, isEditing])
+    setHasManualEdit(false)
+  }, [entry?.id, entry?.activity, entry?.isSameAsPrevious, isEditing])
 
-  const hasContent = activity.trim().length > 0 || thought.trim().length > 0
+  const hasContent = activity.trim().length > 0
 
   const handleSave = async () => {
     if (isSaving) return
     setIsSaving(true)
     try {
-      if (!activity.trim() && !thought.trim() && entry) {
+      if (!activity.trim() && entry) {
         await onDelete()
       } else {
-        await onSave({ activity: activity.trim(), thought: thought.trim() ? thought.trim() : null })
+        await onSave({
+          activity: activity.trim(),
+          thought: null,
+          isSameAsPrevious: hasManualEdit ? false : entry?.isSameAsPrevious,
+        })
       }
       setIsEditing(false)
     } finally {
@@ -43,19 +61,52 @@ export const TimeSlotCard = ({ startTime, endTime, isCurrent, entry, onSave, onD
     }
   }
 
+  const handleChangeActivity = (value: string) => {
+    setActivity(value)
+    if (entry?.isSameAsPrevious) {
+      setHasManualEdit(true)
+    }
+  }
+
   const titleColor = isCurrent ? colors.accent : colors.textSecondary
 
   return (
-    <View style={styles.row}>
+    <View
+      style={styles.row}
+      onLayout={(event) => {
+        const layout = event.nativeEvent.layout
+        onLayout?.(startTime, { y: layout.y, height: layout.height })
+      }}
+    >
       <View style={styles.timeColumn}>
         <Text style={[styles.timeText, { color: titleColor }]}>{startTime}</Text>
       </View>
       <View style={styles.dotColumn}>
-        <View style={[styles.dot, isCurrent ? styles.dotCurrent : null, entry ? styles.dotFilled : null]} />
+        <View
+          style={[
+            styles.dot,
+            isCurrent ? styles.dotCurrent : null,
+            entry ? styles.dotFilled : null,
+            entry?.isSameAsPrevious ? styles.dotCopied : null,
+          ]}
+        />
       </View>
-      <View style={[styles.card, isCurrent ? styles.cardCurrent : hasContent ? styles.cardFilled : styles.cardEmpty]}>
+      <View
+        style={[
+          styles.card,
+          hasContent ? styles.cardFilled : styles.cardEmpty,
+          isCurrent ? styles.cardCurrent : null,
+          entry?.isSameAsPrevious ? styles.cardCopied : null,
+          isSelected ? styles.cardSelected : null,
+        ]}
+      >
         {!isEditing ? (
-          <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.cardContent}>
+          <TouchableOpacity
+            onPress={() => setIsEditing(true)}
+            onLongPress={onCopyPrevious}
+            style={styles.cardContent}
+            activeOpacity={0.7}
+          >
             {activity ? (
               <Text style={styles.activityText}>{activity}</Text>
             ) : (
@@ -63,29 +114,20 @@ export const TimeSlotCard = ({ startTime, endTime, isCurrent, entry, onSave, onD
                 {isCurrent ? '记录此刻...' : '点击记录'}
               </Text>
             )}
-            {thought ? <Text style={styles.thoughtText}>{thought}</Text> : null}
           </TouchableOpacity>
         ) : (
           <View style={styles.editor}>
             <TextInput
               value={activity}
-              onChangeText={setActivity}
+              onChangeText={handleChangeActivity}
               placeholder="你在做什么？"
               placeholderTextColor={colors.textTertiary}
               style={styles.input}
             />
-            <TextInput
-              value={thought}
-              onChangeText={setThought}
-              placeholder="想法或备注..."
-              placeholderTextColor={colors.textTertiary}
-              style={[styles.input, styles.textarea]}
-              multiline
-            />
             <View style={styles.editorFooter}>
               <TouchableOpacity onPress={handleSave} style={styles.saveButton} disabled={isSaving}>
                 <Feather name="send" size={14} color="white" />
-                <Text style={styles.saveText}>{isSaving ? '保存中' : '保存'}</Text>
+                <Text style={styles.saveText}>{isSaving ? '保存中...' : '保存'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -99,11 +141,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: timelineLayout.columnGap,
     marginBottom: 10,
   },
   timeColumn: {
-    width: 64,
+    width: timelineLayout.timeColumnWidth,
     alignItems: 'flex-end',
     paddingTop: 8,
   },
@@ -112,7 +154,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dotColumn: {
-    width: 18,
+    width: timelineLayout.dotColumnWidth,
     alignItems: 'center',
     paddingTop: 12,
   },
@@ -134,6 +176,9 @@ const styles = StyleSheet.create({
   dotFilled: {
     borderColor: colors.accent,
   },
+  dotCopied: {
+    borderColor: colors.borderCopied,
+  },
   card: {
     flex: 1,
     borderRadius: 12,
@@ -151,6 +196,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgTertiary,
     borderColor: colors.accent,
   },
+  cardCopied: {
+    borderColor: colors.borderCopied,
+  },
+  cardSelected: {
+    borderColor: colors.accent,
+    backgroundColor: colors.bgTertiary,
+  },
   cardContent: {
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -159,11 +211,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '600',
-  },
-  thoughtText: {
-    color: colors.textSecondary,
-    marginTop: 6,
-    fontSize: 13,
   },
   placeholderText: {
     color: colors.textTertiary,
@@ -182,9 +229,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     paddingBottom: 6,
-  },
-  textarea: {
-    minHeight: 54,
   },
   editorFooter: {
     alignItems: 'flex-end',

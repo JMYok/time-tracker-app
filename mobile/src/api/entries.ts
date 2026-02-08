@@ -20,6 +20,7 @@ export const createEntry = async (payload: {
   endTime: string
   activity: string
   thought: string | null
+  isSameAsPrevious?: boolean
 }) => {
   return apiFetch<{ success: boolean; data: TimeEntry | null }>('/api/entries', {
     method: 'POST',
@@ -27,7 +28,10 @@ export const createEntry = async (payload: {
   })
 }
 
-export const updateEntry = async (id: string, payload: { activity: string; thought: string | null }) => {
+export const updateEntry = async (
+  id: string,
+  payload: { activity: string; thought: string | null; isSameAsPrevious?: boolean }
+) => {
   return apiFetch<{ success: boolean; data: TimeEntry }>(`/api/entries/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),

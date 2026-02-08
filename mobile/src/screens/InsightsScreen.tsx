@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
+import Constants from 'expo-constants'
 import { analyzeDay, AnalysisData, fetchDocuments, saveDocument, deleteDocument, analyzeRange } from '../api/analysis'
 import { colors } from '../theme'
 
@@ -9,6 +10,8 @@ interface SavedDocument {
   sourceDate?: string | null
   createdAt: string
 }
+
+const safeTop = Constants.statusBarHeight || 0
 
 export const InsightsScreen = () => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
@@ -270,7 +273,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgPrimary,
   },
   content: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: safeTop + 16,
     paddingBottom: 100,
     gap: 16,
   },

@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
+import Constants from 'expo-constants'
 import { colors } from '../theme'
 import { fetchConfig, saveConfig, AppConfig } from '../api/config'
+import { readConfigCache, writeConfigCache } from '../storage/config'
+
+const safeTop = Constants.statusBarHeight || 0
 
 export const SettingsScreen = () => {
   const [config, setConfig] = useState<AppConfig>({
@@ -12,17 +16,30 @@ export const SettingsScreen = () => {
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
 
   useEffect(() => {
-    loadConfig()
-  }, [])
+    let isMounted = true
+    const loadConfig = async () => {
+      const cached = await readConfigCache()
+      if (cached && isMounted) {
+        setConfig(cached)
+      }
 
-  const loadConfig = async () => {
-    try {
-      const result = await fetchConfig()
-      setConfig(result.config || {})
-    } catch (error) {
-      // ignore
+      try {
+        const result = await fetchConfig()
+        const nextConfig = result.config || {}
+        if (isMounted) {
+          setConfig(nextConfig)
+        }
+        await writeConfigCache(nextConfig)
+      } catch (error) {
+        // ignore
+      }
     }
-  }
+
+    loadConfig()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const handleSave = async () => {
     if (isSaving) return
@@ -35,6 +52,7 @@ export const SettingsScreen = () => {
       }
       delete payload.zhipuApiKeyMasked
       await saveConfig(payload)
+      await writeConfigCache({ ...config, zhipuApiKeyMasked: Boolean(config.zhipuApiKey) })
       setStatus('success')
     } catch (error) {
       setStatus('error')
@@ -83,7 +101,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgPrimary,
   },
   content: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: safeTop + 16,
     gap: 12,
     paddingBottom: 100,
   },
