@@ -39,17 +39,19 @@ export const TimeSlotCard = ({
   }, [entry?.id, entry?.activity, entry?.isSameAsPrevious, isEditing])
 
   const hasContent = activity.trim().length > 0
-  const isCopied = Boolean(entry?.isSameAsPrevious) && !hasManualEdit
+  const isCopied = Boolean(entry?.isSameAsPrevious) && !hasManualEdit && !isEditing
 
   const handleSave = async () => {
     if (isSaving) return
     setIsSaving(true)
     try {
-      if (!activity.trim() && entry) {
+      const trimmed = activity.trim()
+      const keepSameAsPrevious = Boolean(entry?.isSameAsPrevious) && !hasManualEdit
+      if (!trimmed && entry && !keepSameAsPrevious) {
         await onDelete()
       } else {
         await onSave({
-          activity: activity.trim(),
+          activity: trimmed,
           thought: null,
           isSameAsPrevious: hasManualEdit ? false : entry?.isSameAsPrevious,
         })
@@ -101,12 +103,20 @@ export const TimeSlotCard = ({
       >
         {!isEditing ? (
           <TouchableOpacity
-            onPress={() => setIsEditing(true)}
+            onPress={() => {
+              if (entry?.isSameAsPrevious) {
+                setHasManualEdit(true)
+                setActivity('')
+              }
+              setIsEditing(true)
+            }}
             onLongPress={onCopyPrevious}
             style={styles.cardContent}
             activeOpacity={0.7}
           >
-            {activity ? (
+            {isCopied ? (
+              <Text style={styles.copiedLabel}>同上</Text>
+            ) : activity ? (
               <Text style={styles.activityText}>{activity}</Text>
             ) : (
               <Text style={[styles.placeholderText, isCurrent ? styles.placeholderCurrent : null]}>
@@ -201,6 +211,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
   },
   cardCopied: {
+    backgroundColor: colors.bgCopied,
     borderColor: colors.borderCopied,
   },
   cardSelected: {
@@ -254,6 +265,11 @@ const styles = StyleSheet.create({
   saveText: {
     color: 'white',
     fontSize: 12,
+    fontWeight: '600',
+  },
+  copiedLabel: {
+    color: colors.textCopied,
+    fontSize: 14,
     fontWeight: '600',
   },
 })

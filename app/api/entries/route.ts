@@ -59,12 +59,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Allow creation if either activity OR thought is present (or both)
+    // Allow creation if activity/thought present OR it is marked as same-as-previous
     const hasActivity = activity && activity.trim();
     const hasThought = thought && thought.trim();
+    const isSame = Boolean(isSameAsPrevious);
 
-    // Only reject if BOTH are empty
-    if (!hasActivity && !hasThought) {
+    // Only reject if BOTH are empty and not same-as-previous
+    if (!hasActivity && !hasThought && !isSame) {
       return NextResponse.json({ success: true, data: null }, { status: 200 });
     }
 
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
         date,
         startTime,
         endTime,
-        activity,
+        activity: activity ?? '',
         thought: thought || null,
         isSameAsPrevious: isSameAsPrevious || false,
       },

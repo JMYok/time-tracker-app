@@ -73,6 +73,7 @@ export function TimelineView() {
         return {
           activity: result.data.activity,
           thought: result.data.thought,
+          isSameAsPrevious: result.data.isSameAsPrevious,
         }
       }
     }
@@ -189,6 +190,31 @@ export function TimelineView() {
     }
   }, [batchActivity, isBatchSaving, selectedSlots, selectedDateKey, timeSlots, upsertEntry])
 
+  const clearCopiedChainFrom = useCallback(async (startTime: string) => {
+    const startIndex = timeSlots.findIndex((slot) => slot.startTime === startTime)
+    if (startIndex === -1) return
+
+    const tasks: Promise<unknown>[] = []
+    for (let index = startIndex + 1; index < timeSlots.length; index += 1) {
+      const nextSlot = timeSlots[index]
+      const nextEntry = nextSlot.entry
+      if (!nextEntry || !nextEntry.isSameAsPrevious) break
+
+      removeEntry(nextEntry.id)
+      if (!nextEntry.id.startsWith('local-')) {
+        tasks.push(
+          authFetch(`/api/entries/${nextEntry.id}`, { method: 'DELETE' }).catch((error) => {
+            console.warn('Failed to delete chained entry', error)
+          })
+        )
+      }
+    }
+
+    if (tasks.length) {
+      await Promise.all(tasks)
+    }
+  }, [removeEntry, timeSlots])
+
   if (false && isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -300,6 +326,7 @@ export function TimelineView() {
                     onEntryChange={handleEntryChange}
                     onEntryUpsert={upsertEntry}
                     onEntryDelete={removeEntry}
+                    onSameAsPreviousChainBreak={clearCopiedChainFrom}
                   />
                 </div>
               </div>

@@ -9,6 +9,8 @@ export const colors = {
   border: '#262626',
   borderHighlight: '#3B82F6',
   borderCopied: '#4C3A6B',
+  bgCopied: '#1C1529',
+  textCopied: '#8D80A8',
   danger: '#EF4444',
   success: '#22C55E',
 }

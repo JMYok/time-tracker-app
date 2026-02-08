@@ -217,18 +217,39 @@ export const TimelineScreen = () => {
     }
   }
 
+  const clearCopiedChainFrom = async (startTime: string) => {
+    const startIndex = slots.findIndex((slot) => slot.startTime === startTime)
+    if (startIndex === -1) return
+
+    const tasks: Promise<unknown>[] = []
+    for (let index = startIndex + 1; index < slots.length; index += 1) {
+      const nextStart = slots[index].startTime
+      const nextEntry = entryMap.get(nextStart)
+      if (!nextEntry || !nextEntry.isSameAsPrevious) break
+
+      removeEntry(nextEntry.id)
+      if (!nextEntry.id.startsWith('local-')) {
+        tasks.push(deleteEntry(nextEntry.id).catch((err) => console.warn('Failed to sync entry delete', err)))
+      }
+    }
+
+    if (tasks.length) {
+      await Promise.all(tasks)
+    }
+  }
+
   const handleCopyPrevious = (startTime: string) => {
     const currentIndex = slots.findIndex((slot) => slot.startTime === startTime)
     if (currentIndex <= 0) return
 
     const previousSlot = slots[currentIndex - 1]
     const previousEntry = entryMap.get(previousSlot.startTime)
-    if (!previousEntry || !previousEntry.activity.trim()) return
+    if (!previousEntry || (!previousEntry.activity.trim() && !previousEntry.isSameAsPrevious)) return
 
     const applyCopy = () => {
       const existing = entryMap.get(startTime)
       const payload = {
-        activity: previousEntry.activity,
+        activity: '',
         thought: null,
         isSameAsPrevious: true,
       }
@@ -310,6 +331,7 @@ export const TimelineScreen = () => {
                 onCopyPrevious={() => handleCopyPrevious(item.startTime)}
                 onSave={async ({ activity, thought, isSameAsPrevious }) => {
                   const nextIsSame = isSameAsPrevious ?? entry?.isSameAsPrevious ?? false
+                  const wasCopied = Boolean(entry?.isSameAsPrevious)
                   if (entry) {
                     const optimistic = { ...entry, activity, thought, isSameAsPrevious: nextIsSame }
                     upsertEntry(optimistic)
@@ -322,6 +344,9 @@ export const TimelineScreen = () => {
                       .catch((error) => {
                         console.warn('Failed to sync entry update', error)
                       })
+                    if (wasCopied && !nextIsSame) {
+                      void clearCopiedChainFrom(item.startTime)
+                    }
                   } else {
                     const localEntry: TimeEntry = {
                       id: `local-${dateKey}-${item.startTime}`,
@@ -357,6 +382,7 @@ export const TimelineScreen = () => {
                   void deleteEntry(entry.id).catch((err) => {
                     console.warn('Failed to sync entry delete', err)
                   })
+                  void clearCopiedChainFrom(item.startTime)
                 }}
               />
             )
