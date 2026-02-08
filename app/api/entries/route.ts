@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isAuthorized } from '@/lib/auth';
 
 // GET /api/entries?date=YYYY-MM-DD - Get all entries for a specific date
 export async function GET(request: NextRequest) {
   try {
+    if (!(await isAuthorized(request))) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
 
@@ -41,6 +45,9 @@ export async function GET(request: NextRequest) {
 // POST /api/entries - Create a new time entry
 export async function POST(request: NextRequest) {
   try {
+    if (!(await isAuthorized(request))) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
     const body = await request.json();
     const { date, startTime, endTime, activity, thought, isSameAsPrevious } = body;
 

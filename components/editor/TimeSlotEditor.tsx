@@ -4,6 +4,7 @@ import { useEffect, useCallback, useState } from 'react'
 import { EntryEditor } from './EntryEditor'
 import { useEntryForm } from './useEntryForm'
 import { cn } from '@/lib/utils'
+import { authFetch } from '@/lib/auth-client'
 
 interface TimeSlotEditorProps {
   isOpen: boolean
@@ -65,7 +66,7 @@ export function TimeSlotEditor({
 
     setIsLoadingPrevious(true)
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `/api/entries/previous?date=${slot.date}&startTime=${slot.startTime}`
       )
       if (response.ok) {

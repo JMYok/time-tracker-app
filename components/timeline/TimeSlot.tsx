@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { TimeSlot as TimeSlotType, type TimeEntry } from './useTimeline'
+import { authFetch } from '@/lib/auth-client'
 
 // CRITICAL: Prevent infinite recursion in mutation queue
 const MAX_RETRIES = 50
@@ -73,7 +74,7 @@ export function TimeSlot({
       setIsSaving(true)
       try {
         if (!activityToSave && slot.entry?.id) {
-          const deleteResponse = await fetch(`/api/entries/${slot.entry.id}`, {
+          const deleteResponse = await authFetch(`/api/entries/${slot.entry.id}`, {
             method: 'DELETE',
           })
 
@@ -103,7 +104,7 @@ export function TimeSlot({
 
         const url = slot.entry?.id ? `/api/entries/${slot.entry.id}` : '/api/entries'
 
-        const response = await fetch(url, {
+        const response = await authFetch(url, {
           method: slot.entry?.id ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(

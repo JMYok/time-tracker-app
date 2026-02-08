@@ -1,9 +1,23 @@
 import Constants from 'expo-constants'
+import { readAuthToken } from '../storage/auth'
 
-const extra = Constants.expoConfig?.extra as { apiBaseUrl?: string; appToken?: string } | undefined
+const extra = Constants.expoConfig?.extra as { apiBaseUrl?: string } | undefined
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || extra?.apiBaseUrl || ''
-const APP_TOKEN = process.env.EXPO_PUBLIC_APP_TOKEN || extra?.appToken || ''
+let cachedToken: string | null = null
+
+export const getApiBaseUrl = () => API_BASE_URL
+
+export const setAuthToken = (token: string | null) => {
+  cachedToken = token
+}
+
+const resolveToken = async () => {
+  if (cachedToken !== null) return cachedToken
+  const stored = await readAuthToken()
+  cachedToken = stored || ''
+  return cachedToken
+}
 
 export const apiFetch = async <T>(
   path: string,
@@ -15,8 +29,11 @@ export const apiFetch = async <T>(
 
   const headers = new Headers(options.headers || {})
   headers.set('Content-Type', 'application/json')
-  if (APP_TOKEN) {
-    headers.set('Authorization', `Bearer ${APP_TOKEN}`)
+  if (!headers.has('Authorization')) {
+    const token = await resolveToken()
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {

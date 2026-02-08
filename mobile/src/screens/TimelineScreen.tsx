@@ -288,7 +288,12 @@ export const TimelineScreen = () => {
         <View style={styles.timelineLine} />
         <View
           style={styles.selectionZone}
+          pointerEvents="box-only"
           onStartShouldSetResponder={() => true}
+          onStartShouldSetResponderCapture={() => true}
+          onMoveShouldSetResponder={() => true}
+          onMoveShouldSetResponderCapture={() => true}
+          onResponderTerminationRequest={() => false}
           onResponderGrant={(event) => handleSelectStart(event.nativeEvent.locationY)}
           onResponderMove={(event) => handleSelectMove(event.nativeEvent.locationY)}
           onResponderRelease={handleSelectEnd}

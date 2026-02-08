@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isAuthorized } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ZhipuProvider } from '@/lib/ai/providers/zhipu'
 
 // POST /api/analyze - Analyze daily time entries with AI
 export async function POST(request: NextRequest) {
   try {
+    if (!(await isAuthorized(request))) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
     const body = await request.json()
     const { date } = body
 

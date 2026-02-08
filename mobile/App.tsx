@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { StatusBar } from 'expo-status-bar'
 import { View, StyleSheet } from 'react-native'
 import { BottomNav } from './src/components/BottomNav'
+import { TokenGate } from './src/components/TokenGate'
 import { TimelineScreen } from './src/screens/TimelineScreen'
 import { InsightsScreen } from './src/screens/InsightsScreen'
 import { SettingsScreen } from './src/screens/SettingsScreen'
@@ -15,12 +16,14 @@ export default function App() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" translucent backgroundColor="transparent" />
-      <View style={styles.content}>
-        {tab === 'timeline' && <TimelineScreen />}
-        {tab === 'insights' && <InsightsScreen />}
-        {tab === 'settings' && <SettingsScreen />}
-      </View>
-      <BottomNav active={tab} onChange={setTab} />
+      <TokenGate>
+        <View style={styles.content}>
+          {tab === 'timeline' && <TimelineScreen />}
+          {tab === 'insights' && <InsightsScreen />}
+          {tab === 'settings' && <SettingsScreen />}
+        </View>
+        <BottomNav active={tab} onChange={setTab} />
+      </TokenGate>
     </View>
   )
 }

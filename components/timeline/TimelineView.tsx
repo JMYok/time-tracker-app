@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useTimeline, type TimeSlot, type TimeEntry } from './useTimeline'
+import { authFetch } from '@/lib/auth-client'
 import { TimelineNavigation } from './TimelineNavigation'
 import { TimeSlot as TimeSlotComponent } from './TimeSlot'
 
@@ -66,7 +67,7 @@ export function TimelineView({ onSlotClick }: TimelineViewProps) {
   const handlePreviousEntryRequest = useCallback(async (currentSlot: TimeSlot) => {
     const date = selectedDate.toISOString().split('T')[0]
 
-    const response = await fetch(
+    const response = await authFetch(
       `/api/entries/previous?date=${date}&startTime=${currentSlot.startTime}`
     )
 
@@ -141,7 +142,7 @@ export function TimelineView({ onSlotClick }: TimelineViewProps) {
           if (slot.entry) {
             const optimistic = { ...slot.entry, activity: content, thought: null, isSameAsPrevious: false }
             upsertEntry(optimistic)
-            const response = await fetch(`/api/entries/${slot.entry.id}`, {
+            const response = await authFetch(`/api/entries/${slot.entry.id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ activity: content, thought: null, isSameAsPrevious: false }),
@@ -166,7 +167,7 @@ export function TimelineView({ onSlotClick }: TimelineViewProps) {
           }
           upsertEntry(localEntry)
 
-          const response = await fetch('/api/entries', {
+          const response = await authFetch('/api/entries', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

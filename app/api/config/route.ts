@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isAuthorized } from '@/lib/auth'
 
 const CONFIG_KEY = 'app_config'
 
 // GET /api/config - Get app configuration
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    if (!(await isAuthorized(request))) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
     const configRecord = await prisma.appConfig.findUnique({
       where: { key: CONFIG_KEY },
     })
@@ -23,7 +27,7 @@ export async function GET() {
 
     const config = JSON.parse(configRecord.value)
     // Remove sensitive data from response
-    const { zhipuApiKey, ...safeConfig } = config
+    const { zhipuApiKey, accessToken, ...safeConfig } = config
     const maskedKey = zhipuApiKey ? '*'.repeat(String(zhipuApiKey).length) : ''
 
     return NextResponse.json({
@@ -46,6 +50,9 @@ export async function GET() {
 // POST /api/config - Save app configuration
 export async function POST(request: NextRequest) {
   try {
+    if (!(await isAuthorized(request))) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
     const body = await request.json()
     const { zhipuApiKey, zhipuModel } = body
 

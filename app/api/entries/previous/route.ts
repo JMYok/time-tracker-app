@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isAuthorized } from '@/lib/auth';
 
 // GET /api/entries/previous?date=YYYY-MM-DD&startTime=HH:MM - Get previous time entry
 export async function GET(request: NextRequest) {
   try {
+    if (!(await isAuthorized(request))) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
     const startTime = searchParams.get('startTime');

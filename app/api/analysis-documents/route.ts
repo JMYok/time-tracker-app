@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isAuthorized } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 const TYPE = 'analysis'
@@ -7,6 +8,9 @@ const isValidDate = (date: string) => /^\d{4}-\d{2}-\d{2}$/.test(date)
 
 export async function GET(request: NextRequest) {
   try {
+    if (!(await isAuthorized(request))) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
     const { searchParams } = new URL(request.url)
     const date = searchParams.get('date')
 
@@ -40,6 +44,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!(await isAuthorized(request))) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
     const body = await request.json()
     const { date, content } = body
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { authFetch } from '@/lib/auth-client'
 
 // Format date as YYYY-MM-DD
 const formatDateKey = (date: Date): string => {
@@ -79,7 +80,7 @@ export function useTimeline(initialDate?: Date): UseTimelineReturn {
     setIsLoading(true)
     try {
       const dateKey = formatDateKey(selectedDate)
-      const response = await fetch(`/api/entries?date=${dateKey}`)
+      const response = await authFetch(`/api/entries?date=${dateKey}`)
       if (response.ok) {
         const data = await response.json()
         setEntries(data.entries || [])

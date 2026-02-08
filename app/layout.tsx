@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { TokenGate } from "@/components/auth/TokenGate";
 
 export const metadata: Metadata = {
   title: "Time Tracker - Track Your Daily Activities",
@@ -23,7 +24,7 @@ export default function RootLayout({
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
         }}
       >
-        {children}
+        <TokenGate>{children}</TokenGate>
       </body>
     </html>
   );

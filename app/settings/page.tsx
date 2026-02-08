@@ -1,5 +1,7 @@
 'use client'
 
+import { authFetch } from '@/lib/auth-client'
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -24,7 +26,7 @@ export default function SettingsPage() {
 
   const loadConfig = async () => {
     try {
-      const response = await fetch('/api/config')
+      const response = await authFetch('/api/config')
       if (response.ok) {
         const data = await response.json()
         setConfig(data.config || {})
@@ -46,7 +48,7 @@ export default function SettingsPage() {
       }
       delete payload.zhipuApiKeyMasked
 
-      const response = await fetch('/api/config', {
+      const response = await authFetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

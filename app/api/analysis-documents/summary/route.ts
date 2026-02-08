@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isAuthorized } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ZhipuProvider } from '@/lib/ai/providers/zhipu'
 
@@ -20,6 +21,9 @@ const parseRange = (range?: string) => {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!(await isAuthorized(request))) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
     const body = await request.json()
     const range = body?.range === '365d' ? '365d' : '30d'
     const { start, end } = parseRange(range)

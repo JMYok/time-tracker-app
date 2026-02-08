@@ -1,5 +1,7 @@
 'use client'
 
+import { authFetch } from '@/lib/auth-client'
+
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -41,7 +43,7 @@ export default function InsightsPage() {
     setDocsError(null)
 
     try {
-      const response = await fetch(`/api/analysis-documents?date=${date}`)
+      const response = await authFetch(`/api/analysis-documents?date=${date}`)
       const result = await response.json()
       if (result.success) {
         setSavedDocs(result.data || [])
@@ -68,7 +70,7 @@ export default function InsightsPage() {
     setAnalysisDraft(null)
 
     try {
-      const response = await fetch('/api/analyze', {
+    const response = await authFetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date }),
@@ -137,7 +139,7 @@ export default function InsightsPage() {
 
     try {
       const content = analysisToMarkdown(analysisDraft)
-      const response = await fetch('/api/analysis-documents', {
+    const response = await authFetch('/api/analysis-documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date, content }),
@@ -159,7 +161,7 @@ export default function InsightsPage() {
 
   const deleteDocument = async (id: string) => {
     try {
-      const response = await fetch(`/api/analysis-documents/${id}`, {
+    const response = await authFetch(`/api/analysis-documents/${id}`, {
         method: 'DELETE',
       })
       const result = await response.json()
@@ -180,7 +182,7 @@ export default function InsightsPage() {
     setRangeSummary(null)
 
     try {
-      const response = await fetch('/api/analysis-documents/summary', {
+    const response = await authFetch('/api/analysis-documents/summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ range }),

@@ -1,10 +1,12 @@
-﻿export const timelineLayout = {
+export const timelineLayout = {
   listPaddingX: 16,
   timeColumnWidth: 64,
   columnGap: 12,
   dotColumnWidth: 18,
   lineWidth: 2,
 }
+
+const selectionPadding = 8
 
 export const timelineLineLeft =
   timelineLayout.listPaddingX +
@@ -14,4 +16,8 @@ export const timelineLineLeft =
   timelineLayout.lineWidth / 2
 
 export const timelineSelectionWidth =
-  timelineLayout.timeColumnWidth + timelineLayout.columnGap + timelineLayout.dotColumnWidth
+  timelineLayout.listPaddingX +
+  timelineLayout.timeColumnWidth +
+  timelineLayout.columnGap +
+  timelineLayout.dotColumnWidth +
+  selectionPadding
