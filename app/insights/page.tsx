@@ -10,6 +10,7 @@ interface AnalysisData {
   dailyNarrative?: string
   timeDistribution: Record<string, number>
   energyMoodCurve?: Record<string, string>
+  keyEvents?: string[]
   patterns: string[]
   insights: string[]
   focusScore: number
