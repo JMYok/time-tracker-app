@@ -1,7 +1,32 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { isAuthorized } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ZhipuProvider } from '@/lib/ai/providers/zhipu'
+
+const expandSameAsPrevious = <T extends { activity: string; thought?: string | null; isSameAsPrevious?: boolean }>(
+  entries: T[]
+): T[] => {
+  const expanded: T[] = []
+  let lastActivity = ''
+  let lastThought: string | null = null
+
+  for (const entry of entries) {
+    if (entry.isSameAsPrevious && !entry.activity) {
+      const merged = {
+        ...entry,
+        activity: lastActivity,
+        thought: entry.thought ?? lastThought,
+      }
+      expanded.push(merged)
+    } else {
+      expanded.push(entry)
+      lastActivity = entry.activity
+      lastThought = entry.thought ?? null
+    }
+  }
+
+  return expanded
+}
 
 // POST /api/analyze - Analyze daily time entries with AI
 export async function POST(request: NextRequest) {
@@ -53,13 +78,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Expand same-as-previous blocks before analysis
+    const expandedEntries = expandSameAsPrevious(entries)
+
     // Run AI analysis
     const provider = new ZhipuProvider({
       apiKey: config.zhipuApiKey,
       model: config.zhipuModel || 'glm-4',
     })
 
-    const analysisResult = await provider.analyze(entries)
+    const analysisResult = await provider.analyze(expandedEntries)
 
     return NextResponse.json({
       success: true,
