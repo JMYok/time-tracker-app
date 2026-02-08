@@ -6,7 +6,7 @@ export const timelineLayout = {
   lineWidth: 2,
 }
 
-const selectionPadding = 8
+const selectionPadding = 24
 
 export const timelineLineLeft =
   timelineLayout.listPaddingX +

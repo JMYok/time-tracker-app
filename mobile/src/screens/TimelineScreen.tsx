@@ -286,19 +286,6 @@ export const TimelineScreen = () => {
 
       <View style={styles.listWrapper}>
         <View style={styles.timelineLine} />
-        <View
-          style={styles.selectionZone}
-          pointerEvents="box-only"
-          onStartShouldSetResponder={() => true}
-          onStartShouldSetResponderCapture={() => true}
-          onMoveShouldSetResponder={() => true}
-          onMoveShouldSetResponderCapture={() => true}
-          onResponderTerminationRequest={() => false}
-          onResponderGrant={(event) => handleSelectStart(event.nativeEvent.locationY)}
-          onResponderMove={(event) => handleSelectMove(event.nativeEvent.locationY)}
-          onResponderRelease={handleSelectEnd}
-          onResponderTerminate={handleSelectEnd}
-        />
         <FlatList
           data={slots}
           keyExtractor={(item) => `${dateKey}-${item.startTime}`}
@@ -375,6 +362,19 @@ export const TimelineScreen = () => {
             )
           }}
         />
+        <View
+          style={styles.selectionZone}
+          pointerEvents="box-only"
+          onStartShouldSetResponder={() => true}
+          onStartShouldSetResponderCapture={() => true}
+          onMoveShouldSetResponder={() => true}
+          onMoveShouldSetResponderCapture={() => true}
+          onResponderTerminationRequest={() => false}
+          onResponderGrant={(event) => handleSelectStart(event.nativeEvent.locationY)}
+          onResponderMove={(event) => handleSelectMove(event.nativeEvent.locationY)}
+          onResponderRelease={handleSelectEnd}
+          onResponderTerminate={handleSelectEnd}
+        />
 
         {selectedSlots.length > 1 && (
           <View style={styles.batchBar}>
@@ -433,6 +433,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: timelineSelectionWidth,
     zIndex: 2,
+    elevation: 2,
   },
   batchBar: {
     position: 'absolute',
