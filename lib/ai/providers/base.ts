@@ -23,6 +23,8 @@ export interface DailyAnalysisResult {
   focusScore: number
   highlights: string[]
   improvements: string[]
+  reflectionQuestions?: string[]
+  reflectionInspiration?: string[]
 }
 
 export interface AIProvider {

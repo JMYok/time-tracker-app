@@ -100,6 +100,16 @@ export const InsightsScreen = () => {
     } else {
       lines.push('- 暂无')
     }
+    if (analysis.reflectionQuestions && analysis.reflectionQuestions.length) {
+      lines.push('')
+      lines.push('## 反思问题')
+      analysis.reflectionQuestions.forEach((item) => lines.push(`- ${item}`))
+    }
+    if (analysis.reflectionInspiration && analysis.reflectionInspiration.length) {
+      lines.push('')
+      lines.push('## 反思灵感')
+      analysis.reflectionInspiration.forEach((item) => lines.push(`- ${item}`))
+    }
     lines.push('')
     lines.push('## 时间分布（小时）')
     Object.entries(analysis.timeDistribution || {}).forEach(([key, value]) => {
@@ -255,6 +265,18 @@ export const InsightsScreen = () => {
             <Text style={styles.blockTitle}>改进建议</Text>
             {renderBulletList(analysisDraft.improvements)}
           </View>
+          {analysisDraft.reflectionQuestions && analysisDraft.reflectionQuestions.length > 0 ? (
+            <View style={styles.blockCard}>
+              <Text style={styles.blockTitle}>反思问题</Text>
+              {renderBulletList(analysisDraft.reflectionQuestions)}
+            </View>
+          ) : null}
+          {analysisDraft.reflectionInspiration && analysisDraft.reflectionInspiration.length > 0 ? (
+            <View style={styles.blockCard}>
+              <Text style={styles.blockTitle}>反思灵感</Text>
+              {renderBulletList(analysisDraft.reflectionInspiration)}
+            </View>
+          ) : null}
           <View style={styles.blockCard}>
             <Text style={styles.blockTitle}>时间分布</Text>
             {Object.keys(analysisDraft.timeDistribution || {}).length === 0 ? (

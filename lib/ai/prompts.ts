@@ -33,8 +33,8 @@ export const buildDailyAnalysisPrompt = (entries: TimeEntry[]): string => {
 3) 结果导向：insights 与 improvements 必须具体、可执行。
 4) 输出必须为纯 JSON 对象，严禁任何 Markdown、解释或前后缀文字。
 
-格式锁定（必须使用以下九个顶级键）：
-summary, dailyNarrative, timeDistribution, energyMoodCurve, keyEvents, insights, focusScore, highlights, improvements
+格式锁定（必须使用以下十一个顶级键）：
+summary, dailyNarrative, timeDistribution, energyMoodCurve, keyEvents, insights, focusScore, highlights, improvements, reflectionQuestions, reflectionInspiration
 
 字段要求：
 - summary：覆盖早/中/晚及关键事件，完整不遗漏主要时段。
@@ -45,6 +45,8 @@ summary, dailyNarrative, timeDistribution, energyMoodCurve, keyEvents, insights,
 - insights：至少2条（效率结构 + 情绪/能量原因）。
 - focusScore：0-100 整数，基于时间块连续性与干扰程度。
 - highlights / improvements：条目化、具体可执行。
+- reflectionQuestions：6-10条引导问题，覆盖正/负能量事件、转折点、价值观、可重复经验。
+- reflectionInspiration：3-6条灵感提示，帮助提炼观点或行动准则。
 
 输出必须可被 JSON.parse() 解析。
 
@@ -71,7 +73,9 @@ JSON 模板（仅示例结构，内容需基于记录填写）：
   "insights": ["...", "..."],
   "focusScore": 75,
   "highlights": ["..."],
-  "improvements": ["..."]
+  "improvements": ["..."],
+  "reflectionQuestions": ["..."],
+  "reflectionInspiration": ["..."]
 }
 
 entriesText：

@@ -11,6 +11,8 @@ export interface AnalysisData {
   focusScore: number
   highlights: string[]
   improvements: string[]
+  reflectionQuestions?: string[]
+  reflectionInspiration?: string[]
 }
 
 export const analyzeDay = async (date: string) => {

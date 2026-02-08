@@ -16,6 +16,8 @@ interface AnalysisData {
   focusScore: number
   highlights: string[]
   improvements: string[]
+  reflectionQuestions?: string[]
+  reflectionInspiration?: string[]
 }
 
 interface SavedDocument {
@@ -138,6 +140,16 @@ export default function InsightsPage() {
       analysis.improvements.forEach((item) => lines.push(`- ${item}`))
     } else {
       lines.push('- 暂无')
+    }
+    if (analysis.reflectionQuestions && analysis.reflectionQuestions.length > 0) {
+      lines.push('')
+      lines.push('## 反思问题')
+      analysis.reflectionQuestions.forEach((item) => lines.push(`- ${item}`))
+    }
+    if (analysis.reflectionInspiration && analysis.reflectionInspiration.length > 0) {
+      lines.push('')
+      lines.push('## 反思灵感')
+      analysis.reflectionInspiration.forEach((item) => lines.push(`- ${item}`))
     }
     lines.push('')
     lines.push('## 时间分布（小时）')
@@ -456,6 +468,34 @@ export default function InsightsPage() {
                     <li key={index} className="flex items-start gap-2">
                       <span className="text-blue-500 mt-0.5">→</span>
                       <span className="text-text-secondary text-sm">{improvement}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {analysisDraft.reflectionQuestions && analysisDraft.reflectionQuestions.length > 0 && (
+              <div className="bg-bg-secondary rounded-xl border border-border-primary p-4">
+                <h2 className="text-base font-medium text-text-primary mb-3">反思问题</h2>
+                <ul className="space-y-2">
+                  {analysisDraft.reflectionQuestions.map((question, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <span className="text-amber-400 mt-0.5">?</span>
+                      <span className="text-text-secondary text-sm">{question}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {analysisDraft.reflectionInspiration && analysisDraft.reflectionInspiration.length > 0 && (
+              <div className="bg-bg-secondary rounded-xl border border-border-primary p-4">
+                <h2 className="text-base font-medium text-text-primary mb-3">反思灵感</h2>
+                <ul className="space-y-2">
+                  {analysisDraft.reflectionInspiration.map((idea, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <span className="text-purple-400 mt-0.5">✦</span>
+                      <span className="text-text-secondary text-sm">{idea}</span>
                     </li>
                   ))}
                 </ul>

@@ -91,6 +91,8 @@ export class ZhipuProvider implements AIProvider {
         focusScore: parsed.focusScore || 50,
         highlights: parsed.highlights || [],
         improvements: parsed.improvements || [],
+        reflectionQuestions: parsed.reflectionQuestions || [],
+        reflectionInspiration: parsed.reflectionInspiration || [],
       }
     } catch (error) {
       console.error('Failed to parse AI response:', error)
@@ -110,6 +112,8 @@ export class ZhipuProvider implements AIProvider {
       focusScore: 50,
       highlights: [],
       improvements: [],
+      reflectionQuestions: [],
+      reflectionInspiration: [],
     }
   }
 }
