@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { StatusBar } from 'expo-status-bar'
-import { SafeAreaView, View, StyleSheet } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import { BottomNav } from './src/components/BottomNav'
 import { TimelineScreen } from './src/screens/TimelineScreen'
 import { InsightsScreen } from './src/screens/InsightsScreen'
@@ -13,15 +13,15 @@ export default function App() {
   const [tab, setTab] = useState<TabKey>('timeline')
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
+    <View style={styles.container}>
+      <StatusBar style="light" translucent backgroundColor="transparent" />
       <View style={styles.content}>
         {tab === 'timeline' && <TimelineScreen />}
         {tab === 'insights' && <InsightsScreen />}
         {tab === 'settings' && <SettingsScreen />}
       </View>
       <BottomNav active={tab} onChange={setTab} />
-    </SafeAreaView>
+    </View>
   )
 }
 

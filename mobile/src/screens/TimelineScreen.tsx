@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { View, StyleSheet, FlatList } from 'react-native'
 import { fetchEntries, createEntry, updateEntry, deleteEntry, TimeEntry } from '../api/entries'
 import { colors } from '../theme'
-import { buildTimeSlots, formatDateKey, parseDateKey, getCurrentSlotStart } from '../utils/date'
+import { buildTimeSlots, formatDateKey, getCurrentSlotStart } from '../utils/date'
 import { TopBar } from '../components/TopBar'
 import { TimeSlotCard } from '../components/TimeSlotCard'
+import { readEntriesCache, writeEntriesCache } from '../storage/entries'
 
 export const TimelineScreen = () => {
   const [selectedDate, setSelectedDate] = useState(new Date())
@@ -20,13 +21,21 @@ export const TimelineScreen = () => {
     const load = async () => {
       setLoading(true)
       try {
+        const cached = await readEntriesCache(dateKey)
+        if (isMounted && cached) {
+          setEntries(cached)
+        }
+
         const result = await fetchEntries(dateKey)
         if (isMounted) {
-          setEntries(result.entries || [])
+          const fresh = result.entries || []
+          setEntries(fresh)
+          await writeEntriesCache(dateKey, fresh)
         }
       } catch (error) {
         if (isMounted) {
-          setEntries([])
+          const cached = await readEntriesCache(dateKey)
+          setEntries(cached || [])
         }
       } finally {
         if (isMounted) setLoading(false)
@@ -62,18 +71,25 @@ export const TimelineScreen = () => {
 
   const upsertEntry = (entry: TimeEntry) => {
     setEntries((prev) => {
-      const idx = prev.findIndex((item) => item.id === entry.id)
+      const idx = prev.findIndex((item) => item.id === entry.id || item.startTime === entry.startTime)
       if (idx === -1) {
-        return [...prev, entry].sort((a, b) => a.startTime.localeCompare(b.startTime))
+        const next = [...prev, entry].sort((a, b) => a.startTime.localeCompare(b.startTime))
+        void writeEntriesCache(dateKey, next)
+        return next
       }
       const next = [...prev]
       next[idx] = entry
+      void writeEntriesCache(dateKey, next)
       return next
     })
   }
 
   const removeEntry = (id: string) => {
-    setEntries((prev) => prev.filter((item) => item.id !== id))
+    setEntries((prev) => {
+      const next = prev.filter((item) => item.id !== id)
+      void writeEntriesCache(dateKey, next)
+      return next
+    })
   }
 
   const slots = useMemo(() => buildTimeSlots(), [])
@@ -100,27 +116,50 @@ export const TimelineScreen = () => {
                 entry={entry}
                 onSave={async ({ activity, thought }) => {
                   if (entry) {
-                    const result = await updateEntry(entry.id, { activity, thought })
-                    if (result.data) {
-                      upsertEntry(result.data)
-                    }
+                    const optimistic = { ...entry, activity, thought }
+                    upsertEntry(optimistic)
+                    void updateEntry(entry.id, { activity, thought })
+                      .then((result) => {
+                        if (result.data) {
+                          upsertEntry(result.data)
+                        }
+                      })
+                      .catch((error) => {
+                        console.warn('Failed to sync entry update', error)
+                      })
                   } else {
-                    const result = await createEntry({
+                    const localEntry: TimeEntry = {
+                      id: `local-${dateKey}-${item.startTime}`,
+                      date: dateKey,
+                      startTime: item.startTime,
+                      endTime: item.endTime,
+                      activity,
+                      thought,
+                    }
+                    upsertEntry(localEntry)
+                    void createEntry({
                       date: dateKey,
                       startTime: item.startTime,
                       endTime: item.endTime,
                       activity,
                       thought,
                     })
-                    if (result.data) {
-                      upsertEntry(result.data)
-                    }
+                      .then((result) => {
+                        if (result.data) {
+                          upsertEntry(result.data)
+                        }
+                      })
+                      .catch((error) => {
+                        console.warn('Failed to sync entry create', error)
+                      })
                   }
                 }}
                 onDelete={async () => {
                   if (!entry) return
-                  await deleteEntry(entry.id)
                   removeEntry(entry.id)
+                  void deleteEntry(entry.id).catch((error) => {
+                    console.warn('Failed to sync entry delete', error)
+                  })
                 }}
               />
             )

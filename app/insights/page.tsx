@@ -79,7 +79,12 @@ export default function InsightsPage() {
       if (result.success) {
         setAnalysisDraft(result.data)
       } else {
-        setAnalysisError(result.error || '分析失败')
+        const message = result.error || '分析失败'
+        if (message === 'No entries found for this date') {
+          setAnalysisError('今天还没有记录，先记几条再分析。')
+        } else {
+          setAnalysisError(message)
+        }
       }
     } catch (err) {
       console.error('Analysis error:', err)

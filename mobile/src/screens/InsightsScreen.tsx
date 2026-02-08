@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
 import { analyzeDay, AnalysisData, fetchDocuments, saveDocument, deleteDocument, analyzeRange } from '../api/analysis'
 import { colors } from '../theme'
@@ -47,7 +47,12 @@ export const InsightsScreen = () => {
       const result = await analyzeDay(date)
       setAnalysisDraft(result.data)
     } catch (error) {
-      setAnalysisError('分析失败')
+      const message = error instanceof Error ? error.message : ''
+      if (message.includes('No entries found for this date')) {
+        setAnalysisError('今天还没有记录，先记几条再分析。')
+      } else {
+        setAnalysisError('分析失败')
+      }
     } finally {
       setIsAnalyzing(false)
     }
@@ -110,6 +115,60 @@ export const InsightsScreen = () => {
     }
   }
 
+  const parseMarkdownSections = (content: string) => {
+    const sections: { title: string; body: string[] }[] = []
+    const lines = content.split(/\r?\n/)
+    let currentTitle = '内容'
+    let buffer: string[] = []
+
+    const flush = () => {
+      const text = buffer.join('\n').trim()
+      if (!text) return
+      sections.push({ title: currentTitle || '内容', body: buffer })
+      buffer = []
+    }
+
+    lines.forEach((line) => {
+      if (line.startsWith('## ')) {
+        flush()
+        currentTitle = line.replace(/^##\s+/, '').trim() || '内容'
+        return
+      }
+      if (line.startsWith('# ')) {
+        return
+      }
+      buffer.push(line)
+    })
+    flush()
+    return sections
+  }
+
+  const renderBulletList = (items: string[], emptyText = '暂无') => {
+    if (!items || items.length === 0) {
+      return <Text style={styles.blockText}>{emptyText}</Text>
+    }
+    return items.map((item, index) => (
+      <View key={`${item}-${index}`} style={styles.listRow}>
+        <Text style={styles.listDot}>•</Text>
+        <Text style={styles.listText}>{item}</Text>
+      </View>
+    ))
+  }
+
+  const renderMarkdownBlocks = (content: string) => {
+    const sections = parseMarkdownSections(content)
+    if (sections.length === 0) {
+      return <Text style={styles.blockText}>{content}</Text>
+    }
+
+    return sections.map((section, index) => (
+      <View key={`${section.title}-${index}`} style={styles.blockCard}>
+        <Text style={styles.blockTitle}>{section.title}</Text>
+        <Text style={styles.blockText}>{section.body.join('\n').trim()}</Text>
+      </View>
+    ))
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
@@ -136,7 +195,35 @@ export const InsightsScreen = () => {
       {analysisDraft && (
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>分析草稿</Text>
-          <Text style={styles.blockText}>{analysisToMarkdown(analysisDraft)}</Text>
+          <View style={styles.blockCard}>
+            <Text style={styles.blockTitle}>总结</Text>
+            <Text style={styles.blockText}>{analysisDraft.summary || '暂无'}</Text>
+          </View>
+          <View style={styles.blockCard}>
+            <Text style={styles.blockTitle}>洞察</Text>
+            {renderBulletList(analysisDraft.insights)}
+          </View>
+          <View style={styles.blockCard}>
+            <Text style={styles.blockTitle}>做得好的点</Text>
+            {renderBulletList(analysisDraft.highlights)}
+          </View>
+          <View style={styles.blockCard}>
+            <Text style={styles.blockTitle}>改进建议</Text>
+            {renderBulletList(analysisDraft.improvements)}
+          </View>
+          <View style={styles.blockCard}>
+            <Text style={styles.blockTitle}>时间分布</Text>
+            {Object.keys(analysisDraft.timeDistribution || {}).length === 0
+              ? <Text style={styles.blockText}>暂无</Text>
+              : Object.entries(analysisDraft.timeDistribution || {}).map(([key, value]) => (
+                <View key={key} style={styles.listRow}>
+                  <Text style={styles.listDot}>•</Text>
+                  <Text style={styles.listText}>
+                    {key}: {typeof value === 'number' ? value.toFixed(1) : value}
+                  </Text>
+                </View>
+              ))}
+          </View>
         </View>
       )}
 
@@ -154,7 +241,7 @@ export const InsightsScreen = () => {
                   <Text style={styles.deleteText}>删除</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={styles.blockText}>{doc.content}</Text>
+              {renderMarkdownBlocks(doc.content)}
             </View>
           ))
         )}
@@ -171,7 +258,7 @@ export const InsightsScreen = () => {
           </TouchableOpacity>
         </View>
         {rangeError && <Text style={styles.errorText}>{rangeError}</Text>}
-        {rangeSummary && <Text style={styles.blockText}>{rangeSummary}</Text>}
+        {rangeSummary && renderMarkdownBlocks(rangeSummary)}
       </View>
     </ScrollView>
   )
@@ -243,10 +330,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  blockCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: 12,
+    backgroundColor: colors.bgTertiary,
+    gap: 8,
+  },
+  blockTitle: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   blockText: {
     color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
+  },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+  listDot: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  listText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+    flex: 1,
   },
   mutedText: {
     color: colors.textTertiary,
