@@ -41,6 +41,7 @@ export const TimeSlotCard = ({
   }, [entry?.id, entry?.activity, entry?.isSameAsPrevious, isEditing])
 
   const hasContent = activity.trim().length > 0
+  const isCopied = Boolean(entry?.isSameAsPrevious) && !hasManualEdit
 
   const handleSave = async () => {
     if (isSaving) return
@@ -87,7 +88,7 @@ export const TimeSlotCard = ({
             styles.dot,
             isCurrent ? styles.dotCurrent : null,
             entry ? styles.dotFilled : null,
-            entry?.isSameAsPrevious ? styles.dotCopied : null,
+            isCopied ? styles.dotCopied : null,
           ]}
         />
       </View>
@@ -96,7 +97,7 @@ export const TimeSlotCard = ({
           styles.card,
           hasContent ? styles.cardFilled : styles.cardEmpty,
           isCurrent ? styles.cardCurrent : null,
-          entry?.isSameAsPrevious ? styles.cardCopied : null,
+          isCopied ? styles.cardCopied : null,
           isSelected ? styles.cardSelected : null,
         ]}
       >

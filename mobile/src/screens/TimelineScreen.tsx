@@ -14,10 +14,12 @@ export const TimelineScreen = () => {
   const [selectedSlots, setSelectedSlots] = useState<string[]>([])
   const [batchActivity, setBatchActivity] = useState('')
   const [isBatchSaving, setIsBatchSaving] = useState(false)
+  const [isSelecting, setIsSelecting] = useState(false)
 
   const slotLayouts = useRef<Record<string, { y: number; height: number }>>({})
   const selectionAnchor = useRef<number | null>(null)
   const scrollOffset = useRef(0)
+  const selectionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const dateKey = formatDateKey(selectedDate)
   const isToday = formatDateKey(new Date()) === dateKey
@@ -124,20 +126,33 @@ export const TimelineScreen = () => {
   }
 
   const handleSelectStart = (locationY: number) => {
-    const index = findSlotIndexAtY(locationY)
-    if (index === null) return
-    selectionAnchor.current = index
-    updateSelectionRange(index, index)
+    if (selectionTimer.current) {
+      clearTimeout(selectionTimer.current)
+    }
+    selectionTimer.current = setTimeout(() => {
+      const index = findSlotIndexAtY(locationY)
+      if (index === null) return
+      selectionAnchor.current = index
+      setIsSelecting(true)
+      updateSelectionRange(index, index)
+    }, 250)
   }
 
   const handleSelectMove = (locationY: number) => {
-    if (selectionAnchor.current === null) return
+    if (!isSelecting || selectionAnchor.current === null) return
     const index = findSlotIndexAtY(locationY)
     if (index === null) return
     updateSelectionRange(selectionAnchor.current, index)
   }
 
   const handleSelectEnd = () => {
+    if (selectionTimer.current) {
+      clearTimeout(selectionTimer.current)
+      selectionTimer.current = null
+    }
+    if (isSelecting) {
+      setIsSelecting(false)
+    }
     selectionAnchor.current = null
   }
 
