@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import Constants from 'expo-constants'
 import { analyzeDay, AnalysisData, fetchDocuments, saveDocument, deleteDocument, analyzeRange } from '../api/analysis'
 import { colors } from '../theme'
+import { readSelectedDate, writeSelectedDate } from '../storage/selectedDate'
 
 interface SavedDocument {
   id: string
@@ -15,6 +17,7 @@ const safeTop = Constants.statusBarHeight || 0
 
 export const InsightsScreen = () => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [showPicker, setShowPicker] = useState(false)
   const [analysisDraft, setAnalysisDraft] = useState<AnalysisData | null>(null)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -36,6 +39,35 @@ export const InsightsScreen = () => {
       setDocsError('获取文档失败')
     }
   }, [date])
+
+  useEffect(() => {
+    let mounted = true
+    const load = async () => {
+      const stored = await readSelectedDate()
+      if (mounted && stored) {
+        setDate(stored)
+      }
+    }
+    load()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const formatDateKey = (value: Date) => value.toISOString().split('T')[0]
+
+  const handleDateChange = (_event: unknown, value?: Date) => {
+    if (!value) {
+      setShowPicker(false)
+      return
+    }
+    const next = formatDateKey(value)
+    setDate(next)
+    void writeSelectedDate(next)
+    if (Platform.OS !== 'ios') {
+      setShowPicker(false)
+    }
+  }
 
   useEffect(() => {
     loadDocs()
@@ -210,13 +242,18 @@ export const InsightsScreen = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
         <Text style={styles.label}>选择日期</Text>
-        <TextInput
-          value={date}
-          onChangeText={setDate}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.textTertiary}
-          style={styles.input}
-        />
+        <TouchableOpacity style={styles.datePickerTrigger} onPress={() => setShowPicker(true)}>
+          <Text style={styles.datePickerText}>{date}</Text>
+        </TouchableOpacity>
+        {showPicker && (
+          <DateTimePicker
+            value={new Date(`${date}T00:00:00`)}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'spinner'}
+            textColor={colors.textPrimary}
+            onChange={handleDateChange}
+          />
+        )}
         <View style={styles.buttonRow}>
           <TouchableOpacity style={styles.primaryButton} onPress={handleAnalyze} disabled={isAnalyzing}>
             <Text style={styles.primaryButtonText}>{isAnalyzing ? '分析中...' : '分析这一天'}</Text>
@@ -364,6 +401,18 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 14,
     backgroundColor: colors.bgTertiary,
+  },
+  datePickerTrigger: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: colors.bgTertiary,
+  },
+  datePickerText: {
+    color: colors.textPrimary,
+    fontSize: 14,
   },
   buttonRow: {
     flexDirection: 'row',

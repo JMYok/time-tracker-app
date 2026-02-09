@@ -29,7 +29,11 @@ interface SavedDocument {
 
 export default function InsightsPage() {
   const router = useRouter()
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(() => {
+    if (typeof window === 'undefined') return new Date().toISOString().split('T')[0]
+    const stored = window.localStorage.getItem('time-tracker:selected-date')
+    return stored || new Date().toISOString().split('T')[0]
+  })
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisDraft, setAnalysisDraft] = useState<AnalysisData | null>(null)
   const [analysisError, setAnalysisError] = useState<string | null>(null)

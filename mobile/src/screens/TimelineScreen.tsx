@@ -5,6 +5,7 @@ import { TopBar } from '../components/TopBar'
 import { TimeSlotCard } from '../components/TimeSlotCard'
 import { timelineLayout, timelineLineLeft, timelineSelectionWidth } from '../components/timelineLayout'
 import { readEntriesCache, writeEntriesCache } from '../storage/entries'
+import { writeSelectedDate } from '../storage/selectedDate'
 import { colors } from '../theme'
 import { buildTimeSlots, formatDateKey, getCurrentSlotStart } from '../utils/date'
 
@@ -29,6 +30,7 @@ export const TimelineScreen = () => {
     let isMounted = true
     const load = async () => {
       try {
+        void writeSelectedDate(dateKey)
         const cached = await readEntriesCache(dateKey)
         if (isMounted && cached) {
           setEntries(cached)

@@ -98,6 +98,12 @@ export function useTimeline(initialDate?: Date): UseTimelineReturn {
     fetchEntries()
   }, [fetchEntries])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const dateKey = formatDateKey(selectedDate)
+    window.localStorage.setItem('time-tracker:selected-date', dateKey)
+  }, [selectedDate])
+
   // Refresh entries function to call after mutations
   const refreshEntries = useCallback(async () => {
     await fetchEntries()
