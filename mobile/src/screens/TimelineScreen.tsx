@@ -244,17 +244,23 @@ export const TimelineScreen = () => {
     const currentIndex = slots.findIndex((slot) => slot.startTime === startTime)
     if (currentIndex <= 0) return
 
-    const previousSlot = slots[currentIndex - 1]
-    const previousEntry = entryMap.get(previousSlot.startTime)
-    if (!previousEntry || (!previousEntry.activity.trim() && !previousEntry.isSameAsPrevious)) return
+    let previousIndex = -1
+    for (let index = currentIndex - 1; index >= 0; index -= 1) {
+      const entry = entryMap.get(slots[index].startTime)
+      if (entry && (entry.activity.trim() || entry.isSameAsPrevious)) {
+        previousIndex = index
+        break
+      }
+    }
+    if (previousIndex === -1) return
 
     const applyCopyForStart = () => {
-      const indices: number[] = [currentIndex]
-      for (let index = currentIndex - 1; index >= 0; index -= 1) {
+      const indices: number[] = []
+      for (let index = currentIndex; index > previousIndex; index -= 1) {
         const slotTime = slots[index].startTime
         const entry = entryMap.get(slotTime)
         if (entry && (entry.activity.trim() || entry.isSameAsPrevious)) {
-          break
+          continue
         }
         indices.push(index)
       }

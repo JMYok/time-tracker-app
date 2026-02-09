@@ -61,24 +61,21 @@ export function TimelineView() {
 
   // Handle request for previous entry
   const handlePreviousEntryRequest = useCallback(async (currentSlot: TimeSlot) => {
-    const date = selectedDate.toISOString().split('T')[0]
+    const currentIndex = timeSlots.findIndex((slot) => slot.startTime === currentSlot.startTime)
+    if (currentIndex <= 0) return null
 
-    const response = await authFetch(
-      `/api/entries/previous?date=${date}&startTime=${currentSlot.startTime}`
-    )
-
-    if (response.ok) {
-      const result = await response.json()
-      if (result.success && result.data) {
+    for (let index = currentIndex - 1; index >= 0; index -= 1) {
+      const entry = timeSlots[index].entry
+      if (entry && (entry.activity.trim() || entry.isSameAsPrevious)) {
         return {
-          activity: result.data.activity,
-          thought: result.data.thought,
-          isSameAsPrevious: result.data.isSameAsPrevious,
+          activity: entry.activity,
+          thought: entry.thought,
+          isSameAsPrevious: entry.isSameAsPrevious,
         }
       }
     }
     return null
-  }, [selectedDate])
+  }, [timeSlots])
 
   const backfillSameAsPreviousUpwards = useCallback(async (startTime: string) => {
     const currentIndex = timeSlots.findIndex((slot) => slot.startTime === startTime)
