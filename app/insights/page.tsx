@@ -1,6 +1,7 @@
 'use client'
 
 import { authFetch } from '@/lib/auth-client'
+import { readAnalysisCache, writeAnalysisCache } from '@/lib/analysis-cache'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
@@ -73,13 +74,26 @@ export default function InsightsPage() {
     loadSavedDocs()
   }, [loadSavedDocs])
 
+  useEffect(() => {
+    const cached = readAnalysisCache(date)
+    if (cached) {
+      setAnalysisDraft(cached)
+    }
+  }, [date])
+
   const analyzeDay = async () => {
     setIsAnalyzing(true)
     setAnalysisError(null)
     setAnalysisDraft(null)
 
     try {
-    const response = await authFetch('/api/analyze', {
+      const cached = readAnalysisCache(date)
+      if (cached) {
+        setAnalysisDraft(cached)
+        setIsAnalyzing(false)
+        return
+      }
+      const response = await authFetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date }),
@@ -89,6 +103,7 @@ export default function InsightsPage() {
 
       if (result.success) {
         setAnalysisDraft(result.data)
+        writeAnalysisCache(date, result.data)
       } else {
         const message = result.error || '分析失败'
         if (message === 'No entries found for this date') {

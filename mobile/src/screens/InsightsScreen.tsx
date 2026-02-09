@@ -5,6 +5,7 @@ import Constants from 'expo-constants'
 import { analyzeDay, AnalysisData, fetchDocuments, saveDocument, deleteDocument, analyzeRange } from '../api/analysis'
 import { colors } from '../theme'
 import { readSelectedDate, writeSelectedDate } from '../storage/selectedDate'
+import { readAnalysisCache, writeAnalysisCache } from '../storage/analysisCache'
 
 interface SavedDocument {
   id: string
@@ -79,8 +80,15 @@ export const InsightsScreen = () => {
     setAnalysisDraft(null)
 
     try {
+      const cached = await readAnalysisCache<AnalysisData>(date)
+      if (cached) {
+        setAnalysisDraft(cached)
+        setIsAnalyzing(false)
+        return
+      }
       const result = await analyzeDay(date)
       setAnalysisDraft(result.data)
+      await writeAnalysisCache(date, result.data)
     } catch (err) {
       const message = err instanceof Error ? err.message : ''
       if (message.includes('No entries found for this date')) {
@@ -237,6 +245,20 @@ export const InsightsScreen = () => {
       </View>
     ))
   }
+
+  useEffect(() => {
+    let mounted = true
+    const loadCache = async () => {
+      const cached = await readAnalysisCache<AnalysisData>(date)
+      if (mounted && cached) {
+        setAnalysisDraft(cached)
+      }
+    }
+    loadCache()
+    return () => {
+      mounted = false
+    }
+  }, [date])
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
