@@ -17,6 +17,7 @@ interface TimeSlotProps {
   onEntryDelete?: (id: string) => void
   onEntrySave?: () => void
   onSameAsPreviousChainBreak?: (startTime: string) => void
+  onSameAsPreviousBackfill?: (startTime: string) => void
 }
 
 export function TimeSlot({
@@ -29,6 +30,7 @@ export function TimeSlot({
   onEntryDelete,
   onEntrySave,
   onSameAsPreviousChainBreak,
+  onSameAsPreviousBackfill,
 }: TimeSlotProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [activity, setActivity] = useState(slot.entry?.activity || slot.entry?.thought || '')
@@ -234,6 +236,9 @@ export function TimeSlot({
         hasLocalDraftRef.current = true
         pendingSameRef.current = false
         void saveEntry(0, { activity: '', isSameAsPrevious: true })
+        if (onSameAsPreviousBackfill) {
+          onSameAsPreviousBackfill(slot.startTime)
+        }
       }
     }
   }
@@ -246,6 +251,9 @@ export function TimeSlot({
     hasLocalDraftRef.current = true
     pendingSameRef.current = false
     void saveEntry(0, { activity: '', isSameAsPrevious: true })
+    if (onSameAsPreviousBackfill) {
+      onSameAsPreviousBackfill(slot.startTime)
+    }
   }
 
   useEffect(() => {

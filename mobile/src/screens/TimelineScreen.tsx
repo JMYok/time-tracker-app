@@ -246,59 +246,72 @@ export const TimelineScreen = () => {
     const previousEntry = entryMap.get(previousSlot.startTime)
     if (!previousEntry || (!previousEntry.activity.trim() && !previousEntry.isSameAsPrevious)) return
 
-    const applyCopy = () => {
-      const existing = entryMap.get(startTime)
+    const applyCopyForStart = () => {
+      const indices: number[] = [currentIndex]
+      for (let index = currentIndex - 1; index >= 0; index -= 1) {
+        const slotTime = slots[index].startTime
+        const entry = entryMap.get(slotTime)
+        if (entry && (entry.activity.trim() || entry.isSameAsPrevious)) {
+          break
+        }
+        indices.push(index)
+      }
+
       const payload = {
         activity: '',
         thought: null,
         isSameAsPrevious: true,
       }
 
-      if (existing) {
-        const optimistic = { ...existing, ...payload }
-        upsertEntry(optimistic)
-        void updateEntry(existing.id, payload)
+      indices.forEach((idx) => {
+        const targetSlot = slots[idx]
+        const existing = entryMap.get(targetSlot.startTime)
+        if (existing) {
+          const optimistic = { ...existing, ...payload }
+          upsertEntry(optimistic)
+          void updateEntry(existing.id, payload)
+            .then((result) => {
+              if (result.data) upsertEntry(result.data)
+            })
+            .catch((error) => {
+              console.warn('Failed to sync entry update', error)
+            })
+          return
+        }
+
+        const localEntry: TimeEntry = {
+          id: `local-${dateKey}-${targetSlot.startTime}`,
+          date: dateKey,
+          startTime: targetSlot.startTime,
+          endTime: targetSlot.endTime,
+          ...payload,
+        }
+        upsertEntry(localEntry)
+        void createEntry({
+          date: dateKey,
+          startTime: targetSlot.startTime,
+          endTime: targetSlot.endTime,
+          ...payload,
+        })
           .then((result) => {
             if (result.data) upsertEntry(result.data)
           })
           .catch((error) => {
-            console.warn('Failed to sync entry update', error)
+            console.warn('Failed to sync entry create', error)
           })
-        return
-      }
-
-      const localEntry: TimeEntry = {
-        id: `local-${dateKey}-${startTime}`,
-        date: dateKey,
-        startTime,
-        endTime: slots[currentIndex].endTime,
-        ...payload,
-      }
-      upsertEntry(localEntry)
-      void createEntry({
-        date: dateKey,
-        startTime,
-        endTime: slots[currentIndex].endTime,
-        ...payload,
       })
-        .then((result) => {
-          if (result.data) upsertEntry(result.data)
-        })
-        .catch((error) => {
-          console.warn('Failed to sync entry create', error)
-        })
     }
 
     const existing = entryMap.get(startTime)
     if (existing && existing.activity.trim()) {
       Alert.alert('覆盖当前内容？', '此时间块已有内容，是否使用上一条内容覆盖？', [
         { text: '取消', style: 'cancel' },
-        { text: '覆盖', style: 'destructive', onPress: applyCopy },
+        { text: '覆盖', style: 'destructive', onPress: applyCopyForStart },
       ])
       return
     }
 
-    applyCopy()
+    applyCopyForStart()
   }
 
   return (

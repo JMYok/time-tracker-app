@@ -80,6 +80,72 @@ export function TimelineView() {
     return null
   }, [selectedDate])
 
+  const backfillSameAsPreviousUpwards = useCallback(async (startTime: string) => {
+    const currentIndex = timeSlots.findIndex((slot) => slot.startTime === startTime)
+    if (currentIndex <= 0) return
+
+    const indices: number[] = []
+    for (let index = currentIndex - 1; index >= 0; index -= 1) {
+      const slot = timeSlots[index]
+      const entry = slot.entry
+      if (entry && (entry.activity.trim() || entry.isSameAsPrevious)) {
+        break
+      }
+      indices.push(index)
+    }
+
+    if (indices.length === 0) return
+
+    const payload = { activity: '', thought: null, isSameAsPrevious: true }
+    await Promise.all(
+      indices.map(async (index) => {
+        const targetSlot = timeSlots[index]
+        const existing = targetSlot.entry
+        if (existing) {
+          const optimistic = { ...existing, ...payload }
+          upsertEntry(optimistic)
+          const response = await authFetch(`/api/entries/${existing.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+          if (response.ok) {
+            const result = await response.json()
+            if (result?.data) {
+              upsertEntry(result.data)
+            }
+          }
+          return
+        }
+
+        const localEntry: TimeEntry = {
+          id: `local-${selectedDateKey}-${targetSlot.startTime}`,
+          date: selectedDateKey,
+          startTime: targetSlot.startTime,
+          endTime: targetSlot.endTime,
+          ...payload,
+        }
+        upsertEntry(localEntry)
+        const response = await authFetch('/api/entries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: selectedDateKey,
+            startTime: targetSlot.startTime,
+            endTime: targetSlot.endTime,
+            ...payload,
+          }),
+        })
+        if (response.ok) {
+          const result = await response.json()
+          if (result?.data) {
+            upsertEntry(result.data)
+          }
+        }
+      })
+    )
+  }, [selectedDateKey, timeSlots, upsertEntry])
+
   const updateSelectionRange = useCallback((startIndex: number, currentIndex: number) => {
     const start = Math.min(startIndex, currentIndex)
     const end = Math.max(startIndex, currentIndex)
@@ -327,6 +393,7 @@ export function TimelineView() {
                     onEntryUpsert={upsertEntry}
                     onEntryDelete={removeEntry}
                     onSameAsPreviousChainBreak={clearCopiedChainFrom}
+                    onSameAsPreviousBackfill={backfillSameAsPreviousUpwards}
                   />
                 </div>
               </div>
