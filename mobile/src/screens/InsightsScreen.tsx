@@ -6,6 +6,7 @@ import { analyzeDay, AnalysisData, fetchDocuments, saveDocument, deleteDocument,
 import { colors } from '../theme'
 import { readSelectedDate, writeSelectedDate } from '../storage/selectedDate'
 import { readAnalysisCache, writeAnalysisCache } from '../storage/analysisCache'
+import { AllDocumentsScreen } from './AllDocumentsScreen'
 
 interface SavedDocument {
   id: string
@@ -17,6 +18,7 @@ interface SavedDocument {
 const safeTop = Constants.statusBarHeight || 0
 
 export const InsightsScreen = () => {
+  const [showAllDocs, setShowAllDocs] = useState(false)
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [showPicker, setShowPicker] = useState(false)
   const [analysisDraft, setAnalysisDraft] = useState<AnalysisData | null>(null)
@@ -260,8 +262,19 @@ export const InsightsScreen = () => {
     }
   }, [date])
 
+  if (showAllDocs) {
+    return <AllDocumentsScreen onBack={() => setShowAllDocs(false)} />
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>AI 分析文档</Text>
+        <Text style={styles.blockText}>查看所有已保存的 AI 分析文档</Text>
+        <TouchableOpacity style={styles.primaryButton} onPress={() => setShowAllDocs(true)}>
+          <Text style={styles.primaryButtonText}>进入文档库</Text>
+        </TouchableOpacity>
+      </View>
       <View style={styles.card}>
         <Text style={styles.label}>选择日期</Text>
         <TouchableOpacity style={styles.datePickerTrigger} onPress={() => setShowPicker(true)}>

@@ -13,26 +13,68 @@ export async function GET(request: NextRequest) {
     }
     const { searchParams } = new URL(request.url)
     const date = searchParams.get('date')
+    const from = searchParams.get('from')
+    const to = searchParams.get('to')
+    const q = searchParams.get('q')
+    const page = Math.max(1, Number(searchParams.get('page') || '1'))
+    const pageSize = Math.min(50, Math.max(1, Number(searchParams.get('pageSize') || '20')))
 
-    if (!date || !isValidDate(date)) {
+    if (date && !isValidDate(date)) {
       return NextResponse.json(
-        { success: false, error: 'Date is required (format: YYYY-MM-DD)' },
+        { success: false, error: 'Invalid date format. Use YYYY-MM-DD' },
+        { status: 400 }
+      )
+    }
+    if (from && !isValidDate(from)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid from date format. Use YYYY-MM-DD' },
+        { status: 400 }
+      )
+    }
+    if (to && !isValidDate(to)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid to date format. Use YYYY-MM-DD' },
         { status: 400 }
       )
     }
 
-    const docs = await prisma.savedNote.findMany({
-      where: { type: TYPE, sourceDate: date },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        content: true,
-        sourceDate: true,
-        createdAt: true,
-      },
-    })
+    const where: Record<string, unknown> = { type: TYPE }
+    if (date) {
+      where.sourceDate = date
+    } else if (from || to) {
+      where.sourceDate = {
+        ...(from ? { gte: from } : {}),
+        ...(to ? { lte: to } : {}),
+      }
+    }
+    if (q) {
+      where.OR = [
+        { content: { contains: q, mode: 'insensitive' } },
+        { sourceDate: { contains: q } },
+      ]
+    }
 
-    return NextResponse.json({ success: true, data: docs })
+    const [total, docs] = await Promise.all([
+      prisma.savedNote.count({ where }),
+      prisma.savedNote.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          content: true,
+          sourceDate: true,
+          createdAt: true,
+        },
+      }),
+    ])
+
+    return NextResponse.json({
+      success: true,
+      data: docs,
+      meta: { total, page, pageSize },
+    })
   } catch (error) {
     console.error('Error fetching analysis documents:', error)
     return NextResponse.json(
