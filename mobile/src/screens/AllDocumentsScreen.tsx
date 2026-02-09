@@ -3,12 +3,14 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Activi
 import { deleteDocument, DocumentsResponse, fetchAllDocuments, SavedDocument } from '../api/analysis'
 import { colors } from '../theme'
 import { DocumentsList } from '../components/DocumentsList'
+import Constants from 'expo-constants'
 
 interface AllDocumentsScreenProps {
   onBack: () => void
 }
 
 const PAGE_SIZE = 20
+const safeTop = Constants.statusBarHeight || 0
 
 const formatDateKey = (value: Date) => value.toISOString().split('T')[0]
 
@@ -99,7 +101,7 @@ export const AllDocumentsScreen = ({ onBack }: AllDocumentsScreenProps) => {
 
   if (selectedDoc) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.detailContent}>
         <View style={styles.detailHeaderRow}>
           <TouchableOpacity onPress={() => setSelectedDoc(null)}>
             <Text style={styles.backText}>返回列表</Text>
@@ -205,6 +207,12 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingTop: 16,
+    paddingBottom: 100,
+    gap: 16,
+  },
+  detailContent: {
+    paddingHorizontal: 16,
+    paddingTop: safeTop + 16,
     paddingBottom: 100,
     gap: 16,
   },
