@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
 import { deleteDocument, DocumentsResponse, fetchAllDocuments, SavedDocument } from '../api/analysis'
 import { colors } from '../theme'
 import { DocumentsList } from '../components/DocumentsList'
@@ -25,6 +25,7 @@ export const AllDocumentsScreen = ({ onBack }: AllDocumentsScreenProps) => {
   const [documents, setDocuments] = useState<SavedDocument[]>([])
   const [meta, setMeta] = useState<DocumentsResponse['meta']>()
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [selectedDoc, setSelectedDoc] = useState<SavedDocument | null>(null)
@@ -35,8 +36,12 @@ export const AllDocumentsScreen = ({ onBack }: AllDocumentsScreenProps) => {
     return Math.max(1, Math.ceil(meta.total / meta.pageSize))
   }, [meta])
 
-  const loadDocuments = useCallback(async (nextPage = 1) => {
-    setIsLoading(true)
+  const loadDocuments = useCallback(async (nextPage = 1, mode: 'replace' | 'append' = 'replace') => {
+    if (mode === 'append') {
+      setIsLoadingMore(true)
+    } else {
+      setIsLoading(true)
+    }
     setError(null)
 
     try {
@@ -50,16 +55,22 @@ export const AllDocumentsScreen = ({ onBack }: AllDocumentsScreenProps) => {
       if (!result.success) {
         throw new Error('加载失败')
       }
-      setDocuments(result.data || [])
+      setDocuments((prev) => (mode === 'append' ? [...prev, ...(result.data || [])] : result.data || []))
       setMeta(result.meta)
       setPage(nextPage)
     } catch (err) {
       console.warn('Failed to load documents', err)
       setError('加载失败')
-      setDocuments([])
-      setMeta(undefined)
+      if (mode !== 'append') {
+        setDocuments([])
+        setMeta(undefined)
+      }
     } finally {
-      setIsLoading(false)
+      if (mode === 'append') {
+        setIsLoadingMore(false)
+      } else {
+        setIsLoading(false)
+      }
     }
   }, [from, query, to])
 
@@ -68,7 +79,7 @@ export const AllDocumentsScreen = ({ onBack }: AllDocumentsScreenProps) => {
   }, [loadDocuments])
 
   const handleApplyFilter = () => {
-    loadDocuments(1)
+    loadDocuments(1, 'replace')
   }
 
   const handleDelete = async () => {
@@ -89,19 +100,17 @@ export const AllDocumentsScreen = ({ onBack }: AllDocumentsScreenProps) => {
   if (selectedDoc) {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <View style={styles.headerRow}>
+        <View style={styles.detailHeaderRow}>
           <TouchableOpacity onPress={() => setSelectedDoc(null)}>
             <Text style={styles.backText}>返回列表</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>文档详情</Text>
+          <TouchableOpacity onPress={handleDelete} disabled={isDeleting}>
+            <Text style={styles.deleteText}>{isDeleting ? '删除中...' : '删除'}</Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.card}>
-          <View style={styles.detailHeader}>
-            <Text style={styles.docMeta}>{selectedDoc.sourceDate || selectedDoc.createdAt}</Text>
-            <TouchableOpacity onPress={handleDelete} disabled={isDeleting}>
-              <Text style={styles.deleteText}>{isDeleting ? '删除中...' : '删除'}</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.docMeta}>{selectedDoc.sourceDate || selectedDoc.createdAt}</Text>
           <DocumentsList content={selectedDoc.content} />
         </View>
       </ScrollView>
@@ -162,29 +171,26 @@ export const AllDocumentsScreen = ({ onBack }: AllDocumentsScreenProps) => {
         ) : (
           documents.map((doc) => (
             <TouchableOpacity key={doc.id} style={styles.docItem} onPress={() => setSelectedDoc(doc)}>
-              <Text style={styles.docMeta}>{doc.sourceDate || doc.createdAt}</Text>
+              <View style={styles.docItemHeader}>
+                <Text style={styles.docMeta}>{doc.sourceDate || doc.createdAt}</Text>
+                <Text style={styles.docArrow}>›</Text>
+              </View>
               <Text style={styles.docSnippet}>{buildSnippet(doc.content)}</Text>
             </TouchableOpacity>
           ))
         )}
-        {meta && meta.total > PAGE_SIZE && (
-          <View style={styles.paginationRow}>
-            <TouchableOpacity
-              style={[styles.pageButton, page <= 1 ? styles.pageButtonDisabled : null]}
-              onPress={() => loadDocuments(page - 1)}
-              disabled={page <= 1 || isLoading}
-            >
-              <Text style={styles.pageButtonText}>上一页</Text>
-            </TouchableOpacity>
-            <Text style={styles.pageMeta}>{page} / {totalPages}</Text>
-            <TouchableOpacity
-              style={[styles.pageButton, page >= totalPages ? styles.pageButtonDisabled : null]}
-              onPress={() => loadDocuments(page + 1)}
-              disabled={page >= totalPages || isLoading}
-            >
-              <Text style={styles.pageButtonText}>下一页</Text>
-            </TouchableOpacity>
-          </View>
+        {meta && meta.total > documents.length && (
+          <TouchableOpacity
+            style={styles.loadMoreButton}
+            onPress={() => loadDocuments(page + 1, 'append')}
+            disabled={isLoadingMore}
+          >
+            {isLoadingMore ? (
+              <ActivityIndicator size="small" color={colors.textSecondary} />
+            ) : (
+              <Text style={styles.loadMoreText}>加载更多</Text>
+            )}
+          </TouchableOpacity>
         )}
       </View>
     </ScrollView>
@@ -203,6 +209,11 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  detailHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -278,13 +289,30 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     fontSize: 11,
   },
-  detailHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   deleteText: {
     color: colors.danger,
+    fontSize: 12,
+  },
+  docItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  docArrow: {
+    color: colors.textTertiary,
+    fontSize: 16,
+  },
+  loadMoreButton: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: colors.bgTertiary,
+  },
+  loadMoreText: {
+    color: colors.textSecondary,
     fontSize: 12,
   },
   docSnippet: {
