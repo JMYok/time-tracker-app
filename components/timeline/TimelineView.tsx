@@ -6,12 +6,19 @@ import { authFetch } from '@/lib/auth-client'
 import { TimelineNavigation } from './TimelineNavigation'
 import { TimeSlot as TimeSlotComponent } from './TimeSlot'
 
+const formatLocalDateKey = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export function TimelineView() {
   const { timeSlots, selectedDate, isLoading, goToPreviousDay, goToNextDay, goToNow, refreshEntries, upsertEntry, removeEntry } = useTimeline()
   const containerRef = useRef<HTMLDivElement>(null)
   const currentSlotRef = useRef<HTMLDivElement>(null)
   const lastAutoScrollDateKeyRef = useRef<string | null>(null)
-  const selectedDateKey = selectedDate.toISOString().split('T')[0]
+  const selectedDateKey = formatLocalDateKey(selectedDate)
   const [selectedSlots, setSelectedSlots] = useState<string[]>([])
   const [batchActivity, setBatchActivity] = useState('')
   const [isBatchSaving, setIsBatchSaving] = useState(false)
@@ -47,7 +54,7 @@ export function TimelineView() {
 
   // Auto-scroll to current time slot (only once per date, not during editing)
   useEffect(() => {
-    const dateKey = selectedDate.toISOString().split('T')[0]
+    const dateKey = formatLocalDateKey(selectedDate)
     if (lastAutoScrollDateKeyRef.current === dateKey) return
 
     if (currentSlotRef.current) {

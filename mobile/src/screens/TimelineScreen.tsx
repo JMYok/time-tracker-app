@@ -1,13 +1,68 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { createEntry, deleteEntry, fetchEntries, TimeEntry, updateEntry } from '../api/entries'
 import { TopBar } from '../components/TopBar'
 import { TimeSlotCard } from '../components/TimeSlotCard'
 import { timelineLayout, timelineLineLeft, timelineSelectionWidth } from '../components/timelineLayout'
 import { readEntriesCache, writeEntriesCache } from '../storage/entries'
+import { readEntrySyncState, writeEntrySyncState } from '../storage/syncQueue'
 import { writeSelectedDate } from '../storage/selectedDate'
+import {
+  createInitialSyncState,
+  enqueueDeleteTask,
+  enqueueUpsertTask,
+  flushSyncTasks,
+  getPendingUpserts,
+  type EntrySyncState,
+  type EntryUpsertPayload,
+} from '../sync/entrySync'
 import { colors } from '../theme'
 import { buildTimeSlots, formatDateKey, getCurrentSlotStart } from '../utils/date'
+
+const sortEntriesByStartTime = (items: TimeEntry[]) =>
+  [...items].sort((a, b) => a.startTime.localeCompare(b.startTime))
+
+const isLocalOnlyEntry = (entry: TimeEntry) => entry.id.startsWith('local-')
+
+const mergeFreshEntries = (fresh: TimeEntry[], cached: TimeEntry[]) => {
+  const byStartTime = new Map<string, TimeEntry>()
+
+  fresh.forEach((entry) => {
+    byStartTime.set(entry.startTime, entry)
+  })
+
+  // Keep local-only records (failed sync / offline create) so they are not wiped by server refresh.
+  cached.filter(isLocalOnlyEntry).forEach((entry) => {
+    if (!byStartTime.has(entry.startTime)) {
+      byStartTime.set(entry.startTime, entry)
+    }
+  })
+
+  return sortEntriesByStartTime(Array.from(byStartTime.values()))
+}
+
+const mergeEntriesWithPendingUpserts = (entries: TimeEntry[], state: EntrySyncState, date: string) => {
+  const byStartTime = new Map<string, TimeEntry>()
+  entries.forEach((entry) => {
+    byStartTime.set(entry.startTime, entry)
+  })
+
+  const pending = getPendingUpserts(state)
+  pending.forEach((payload) => {
+    if (payload.date !== date) return
+    byStartTime.set(payload.startTime, {
+      id: `local-${payload.date}-${payload.startTime}`,
+      date: payload.date,
+      startTime: payload.startTime,
+      endTime: payload.endTime,
+      activity: payload.activity,
+      thought: payload.thought,
+      isSameAsPrevious: Boolean(payload.isSameAsPrevious),
+    })
+  })
+
+  return sortEntriesByStartTime(Array.from(byStartTime.values()))
+}
 
 export const TimelineScreen = () => {
   const [selectedDate, setSelectedDate] = useState(new Date())
@@ -16,40 +71,174 @@ export const TimelineScreen = () => {
   const [batchActivity, setBatchActivity] = useState('')
   const [isBatchSaving, setIsBatchSaving] = useState(false)
   const [isSelecting, setIsSelecting] = useState(false)
+  const [pendingSyncCount, setPendingSyncCount] = useState(0)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncError, setSyncError] = useState<string | null>(null)
 
   const slotLayouts = useRef<Record<string, { y: number; height: number }>>({})
   const selectionAnchor = useRef<number | null>(null)
   const scrollOffset = useRef(0)
   const selectionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const syncStateRef = useRef<EntrySyncState>(createInitialSyncState())
+  const isFlushingSyncRef = useRef(false)
 
   const dateKey = formatDateKey(selectedDate)
   const isToday = formatDateKey(new Date()) === dateKey
   const currentSlot = getCurrentSlotStart()
 
+  const applySyncIndicators = useCallback((state: EntrySyncState) => {
+    setPendingSyncCount(state.tasks.length)
+    const latestError = state.tasks.find((task) => Boolean(task.lastError))?.lastError || null
+    setSyncError(latestError)
+  }, [])
+
+  const upsertEntry = useCallback((entry: TimeEntry) => {
+    setEntries((prev) => {
+      const idx = prev.findIndex((item) => item.id === entry.id || item.startTime === entry.startTime)
+      if (idx === -1) {
+        const next = [...prev, entry].sort((a, b) => a.startTime.localeCompare(b.startTime))
+        void writeEntriesCache(dateKey, next)
+        return next
+      }
+      const next = [...prev]
+      next[idx] = entry
+      void writeEntriesCache(dateKey, next)
+      return next
+    })
+  }, [dateKey])
+
+  const removeEntry = useCallback((id: string) => {
+    setEntries((prev) => {
+      const next = prev.filter((item) => item.id !== id)
+      void writeEntriesCache(dateKey, next)
+      return next
+    })
+  }, [dateKey])
+
+  const flushPendingSync = useCallback(async () => {
+    if (isFlushingSyncRef.current) return
+    if (syncStateRef.current.tasks.length === 0) {
+      applySyncIndicators(syncStateRef.current)
+      setIsSyncing(false)
+      return
+    }
+
+    isFlushingSyncRef.current = true
+    setIsSyncing(true)
+    try {
+      const result = await flushSyncTasks({
+        state: syncStateRef.current,
+        now: Date.now(),
+        api: {
+          upsertEntry: async (payload) => {
+            const response = await createEntry({
+              date: payload.date,
+              startTime: payload.startTime,
+              endTime: payload.endTime,
+              activity: payload.activity,
+              thought: payload.thought,
+              isSameAsPrevious: payload.isSameAsPrevious,
+            })
+            if (!response.data) {
+              throw new Error('Server returned empty entry payload')
+            }
+            return response.data
+          },
+          deleteEntry: async (id) => {
+            await deleteEntry(id)
+          },
+        },
+      })
+
+      syncStateRef.current = result.state
+      await writeEntrySyncState(result.state)
+      applySyncIndicators(result.state)
+
+      result.applied.forEach((item) => {
+        if (item.type === 'upsert') {
+          upsertEntry(item.entry)
+          return
+        }
+        removeEntry(item.entryId)
+      })
+    } catch (error) {
+      console.warn('Failed to flush sync queue', error)
+      setSyncError(error instanceof Error ? error.message : String(error))
+    } finally {
+      isFlushingSyncRef.current = false
+      setIsSyncing(false)
+    }
+  }, [applySyncIndicators, removeEntry, upsertEntry])
+
+  const queueUpsertRetry = async (payload: EntryUpsertPayload) => {
+    syncStateRef.current = enqueueUpsertTask(syncStateRef.current, payload, Date.now())
+    await writeEntrySyncState(syncStateRef.current)
+    applySyncIndicators(syncStateRef.current)
+  }
+
+  const queueDeleteRetry = async (entry: { id: string; date: string; startTime: string }) => {
+    syncStateRef.current = enqueueDeleteTask(syncStateRef.current, entry, Date.now())
+    await writeEntrySyncState(syncStateRef.current)
+    applySyncIndicators(syncStateRef.current)
+  }
+
+  useEffect(() => {
+    let isMounted = true
+    const initSyncState = async () => {
+      const state = await readEntrySyncState()
+      if (!isMounted) return
+      syncStateRef.current = state
+      applySyncIndicators(state)
+      await flushPendingSync()
+    }
+    void initSyncState()
+
+    const interval = setInterval(() => {
+      void flushPendingSync()
+    }, 20000)
+
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
+  }, [applySyncIndicators, flushPendingSync])
+
   useEffect(() => {
     let isMounted = true
     const load = async () => {
+      let cachedEntries: TimeEntry[] = []
       try {
         void writeSelectedDate(dateKey)
         const cached = await readEntriesCache(dateKey)
-        if (isMounted && cached) {
-          setEntries(cached)
+        cachedEntries = sortEntriesByStartTime(cached || [])
+        if (isMounted && cachedEntries.length > 0) {
+          setEntries(cachedEntries)
         }
 
         const result = await fetchEntries(dateKey)
         if (isMounted) {
-          const fresh = result.entries || []
-          setEntries(fresh)
-          await writeEntriesCache(dateKey, fresh)
+          const fresh = sortEntriesByStartTime(result.entries || [])
+          const shouldPreferCached = fresh.length === 0 && cachedEntries.length > 0
+          const mergedEntries = shouldPreferCached
+            ? cachedEntries
+            : mergeFreshEntries(fresh, cachedEntries)
+          const nextEntries = mergeEntriesWithPendingUpserts(mergedEntries, syncStateRef.current, dateKey)
+          setEntries(nextEntries)
+          await writeEntriesCache(dateKey, nextEntries)
         }
       } catch {
         if (isMounted) {
+          if (cachedEntries.length > 0) {
+            setEntries(cachedEntries)
+            return
+          }
           const cached = await readEntriesCache(dateKey)
-          setEntries(cached || [])
+          const fallback = mergeEntriesWithPendingUpserts(sortEntriesByStartTime(cached || []), syncStateRef.current, dateKey)
+          setEntries(fallback)
         }
       }
     }
-    load()
+    void load()
     return () => {
       isMounted = false
     }
@@ -66,6 +255,17 @@ export const TimelineScreen = () => {
     return map
   }, [entries])
 
+  const syncStatusText = isSyncing
+    ? '同步中...'
+    : pendingSyncCount > 0
+      ? `待同步 ${pendingSyncCount} 条`
+      : '已同步'
+  const syncStatusColor = isSyncing
+    ? colors.accent
+    : pendingSyncCount > 0
+      ? colors.textSecondary
+      : colors.success
+
   const handlePrevDay = () => {
     const date = new Date(selectedDate)
     date.setDate(date.getDate() - 1)
@@ -80,29 +280,6 @@ export const TimelineScreen = () => {
 
   const handleToday = () => {
     setSelectedDate(new Date())
-  }
-
-  const upsertEntry = (entry: TimeEntry) => {
-    setEntries((prev) => {
-      const idx = prev.findIndex((item) => item.id === entry.id || item.startTime === entry.startTime)
-      if (idx === -1) {
-        const next = [...prev, entry].sort((a, b) => a.startTime.localeCompare(b.startTime))
-        void writeEntriesCache(dateKey, next)
-        return next
-      }
-      const next = [...prev]
-      next[idx] = entry
-      void writeEntriesCache(dateKey, next)
-      return next
-    })
-  }
-
-  const removeEntry = (id: string) => {
-    setEntries((prev) => {
-      const next = prev.filter((item) => item.id !== id)
-      void writeEntriesCache(dateKey, next)
-      return next
-    })
   }
 
   const slots = useMemo(() => buildTimeSlots(), [])
@@ -181,9 +358,17 @@ export const TimelineScreen = () => {
               .then((result) => {
                 if (result.data) upsertEntry(result.data)
               })
-                  .catch((err) => {
-                    console.warn('Failed to sync entry update', err)
-                  })
+              .catch(async (err) => {
+                console.warn('Failed to sync entry update', err)
+                await queueUpsertRetry({
+                  date: existing.date,
+                  startTime: existing.startTime,
+                  endTime: existing.endTime,
+                  activity: content,
+                  thought: null,
+                  isSameAsPrevious: false,
+                })
+              })
             return
           }
 
@@ -208,8 +393,16 @@ export const TimelineScreen = () => {
             .then((result) => {
               if (result.data) upsertEntry(result.data)
             })
-            .catch((error) => {
+            .catch(async (error) => {
               console.warn('Failed to sync entry create', error)
+              await queueUpsertRetry({
+                date: dateKey,
+                startTime,
+                endTime: slot.endTime,
+                activity: content,
+                thought: null,
+                isSameAsPrevious: false,
+              })
             })
         })
       )
@@ -231,7 +424,16 @@ export const TimelineScreen = () => {
 
       removeEntry(nextEntry.id)
       if (!nextEntry.id.startsWith('local-')) {
-        tasks.push(deleteEntry(nextEntry.id).catch((err) => console.warn('Failed to sync entry delete', err)))
+        tasks.push(
+          deleteEntry(nextEntry.id).catch(async (err) => {
+            console.warn('Failed to sync entry delete', err)
+            await queueDeleteRetry({
+              id: nextEntry.id,
+              date: nextEntry.date,
+              startTime: nextEntry.startTime,
+            })
+          })
+        )
       }
     }
 
@@ -281,8 +483,16 @@ export const TimelineScreen = () => {
             .then((result) => {
               if (result.data) upsertEntry(result.data)
             })
-            .catch((error) => {
+            .catch(async (error) => {
               console.warn('Failed to sync entry update', error)
+              await queueUpsertRetry({
+                date: existing.date,
+                startTime: existing.startTime,
+                endTime: existing.endTime,
+                activity: payload.activity,
+                thought: payload.thought,
+                isSameAsPrevious: payload.isSameAsPrevious,
+              })
             })
           return
         }
@@ -304,8 +514,16 @@ export const TimelineScreen = () => {
           .then((result) => {
             if (result.data) upsertEntry(result.data)
           })
-          .catch((error) => {
+          .catch(async (error) => {
             console.warn('Failed to sync entry create', error)
+            await queueUpsertRetry({
+              date: dateKey,
+              startTime: targetSlot.startTime,
+              endTime: targetSlot.endTime,
+              activity: payload.activity,
+              thought: payload.thought,
+              isSameAsPrevious: payload.isSameAsPrevious,
+            })
           })
       })
     }
@@ -325,6 +543,14 @@ export const TimelineScreen = () => {
   return (
     <View style={styles.container}>
       <TopBar date={selectedDate} onPrev={handlePrevDay} onNext={handleNextDay} onToday={handleToday} showToday={isToday} />
+      <View style={styles.syncBanner}>
+        <Text style={[styles.syncText, { color: syncStatusColor }]}>{syncStatusText}</Text>
+        {syncError && pendingSyncCount > 0 ? (
+          <Text style={styles.syncErrorText} numberOfLines={1}>
+            最近失败: {syncError}
+          </Text>
+        ) : null}
+      </View>
 
       <View style={styles.listWrapper}>
         <View style={styles.timelineLine} />
@@ -362,8 +588,16 @@ export const TimelineScreen = () => {
                           upsertEntry(result.data)
                         }
                       })
-                      .catch((error) => {
+                      .catch(async (error) => {
                         console.warn('Failed to sync entry update', error)
+                        await queueUpsertRetry({
+                          date: entry.date,
+                          startTime: entry.startTime,
+                          endTime: entry.endTime,
+                          activity,
+                          thought,
+                          isSameAsPrevious: nextIsSame,
+                        })
                       })
                     if (wasCopied && !nextIsSame) {
                       void clearCopiedChainFrom(item.startTime)
@@ -392,16 +626,29 @@ export const TimelineScreen = () => {
                           upsertEntry(result.data)
                         }
                       })
-                      .catch((err) => {
+                      .catch(async (err) => {
                         console.warn('Failed to sync entry create', err)
+                        await queueUpsertRetry({
+                          date: dateKey,
+                          startTime: item.startTime,
+                          endTime: item.endTime,
+                          activity,
+                          thought,
+                          isSameAsPrevious: nextIsSame,
+                        })
                       })
                   }
                 }}
                 onDelete={async () => {
                   if (!entry) return
                   removeEntry(entry.id)
-                  void deleteEntry(entry.id).catch((err) => {
+                  void deleteEntry(entry.id).catch(async (err) => {
                     console.warn('Failed to sync entry delete', err)
+                    await queueDeleteRetry({
+                      id: entry.id,
+                      date: entry.date,
+                      startTime: entry.startTime,
+                    })
                   })
                   void clearCopiedChainFrom(item.startTime)
                 }}
@@ -464,6 +711,22 @@ const styles = StyleSheet.create({
   },
   listWrapper: {
     flex: 1,
+  },
+  syncBanner: {
+    backgroundColor: colors.bgSecondary,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+  },
+  syncText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  syncErrorText: {
+    marginTop: 2,
+    color: colors.danger,
+    fontSize: 11,
   },
   timelineLine: {
     position: 'absolute',
@@ -541,3 +804,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 })
+
+

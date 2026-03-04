@@ -87,18 +87,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const entry = await prisma.timeEntry.create({
-      data: {
-        date,
-        startTime,
-        endTime,
-        activity: activity ?? '',
-        thought: thought || null,
-        isSameAsPrevious: isSameAsPrevious || false,
-      },
+    const existingEntry = await prisma.timeEntry.findFirst({
+      where: { date, startTime },
     });
 
-    return NextResponse.json({ success: true, data: entry }, { status: 201 });
+    const entry = existingEntry
+      ? await prisma.timeEntry.update({
+          where: { id: existingEntry.id },
+          data: {
+            endTime,
+            activity: activity ?? '',
+            thought: thought || null,
+            isSameAsPrevious: isSameAsPrevious || false,
+          },
+        })
+      : await prisma.timeEntry.create({
+          data: {
+            date,
+            startTime,
+            endTime,
+            activity: activity ?? '',
+            thought: thought || null,
+            isSameAsPrevious: isSameAsPrevious || false,
+          },
+        });
+
+    return NextResponse.json({ success: true, data: entry }, { status: existingEntry ? 200 : 201 });
   } catch (error) {
     console.error('Error creating time entry:', error);
     return NextResponse.json(
